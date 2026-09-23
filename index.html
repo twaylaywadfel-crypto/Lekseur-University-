@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lekseur University</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===================== TOKENS ===================== */
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+
+  --paper:#F5F6F1;
+  --paper-panel:#FBFBF8;
+  --paper-line:#CFDBD2;
+  --ink-900:#1B2A4A;
+  --ink-700:#33456B;
+  --ink-500:#5B6B82;
+  --ink-300:#93A0B3;
+  --gold:#AD8535;
+  --gold-strong:#8C6A28;
+  --gold-soft:#EADFC2;
+  --red:#B14B44;
+  --red-soft:#EFD3D0;
+  --on-gold:#2A1E08;
+  --on-red:#FBF3F2;
+  --shadow-color: rgba(27,42,74,.22);
+
+  --font-display:'IBM Plex Serif', Georgia, serif;
+  --font-body:'IBM Plex Sans', -apple-system, sans-serif;
+  --font-mono:'IBM Plex Mono', 'Courier New', monospace;
+
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+  --space-5:24px; --space-6:32px; --space-7:48px; --space-8:64px;
+
+  --radius-sm:6px; --radius-md:10px; --radius-lg:16px;
+}
+html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#1E2E27;
+    --paper-panel:#263A31;
+    --paper-line:#3A5145;
+    --ink-900:#F1EFE7;
+    --ink-700:#D9E3DB;
+    --ink-500:#A9BBB0;
+    --ink-300:#748A7E;
+    --gold:#E3B85C;
+    --gold-strong:#F0CD84;
+    --gold-soft:#41371E;
+    --red:#E08A7D;
+    --red-soft:#432722;
+    --on-gold:#2A1E08;
+    --on-red:#2A1210;
+    --shadow-color: rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1E2E27;
+  --paper-panel:#263A31;
+  --paper-line:#3A5145;
+  --ink-900:#F1EFE7;
+  --ink-700:#D9E3DB;
+  --ink-500:#A9BBB0;
+  --ink-300:#748A7E;
+  --gold:#E3B85C;
+  --gold-strong:#F0CD84;
+  --gold-soft:#41371E;
+  --red:#E08A7D;
+  --red-soft:#432722;
+  --on-gold:#2A1E08;
+  --on-red:#2A1210;
+  --shadow-color: rgba(0,0,0,.4);
+}
+
+/* ===================== RESET ===================== */
+*,*::before,*::after{ box-sizing:inherit; margin:0; padding:0; }
+html,body{ height:100%; }
+body{
+  background:var(--paper);
+  color:var(--ink-900);
+  font-family:var(--font-body), sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  transition:background-color .25s ease, color .25s ease;
+}
+button,input,select{ font-family:inherit; font-size:inherit; color:inherit; }
+button{ cursor:pointer; background:none; border:none; }
+img,svg{ display:block; max-width:100%; }
+a{ color:inherit; }
+::selection{ background:var(--gold-soft); }
+
+:focus-visible{ outline:2.5px solid var(--gold); outline-offset:2px; border-radius:4px; }
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
+}
+
+.sr-only{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+
+/* ===================== LAYOUT ===================== */
+#app{ min-height:100%; padding-bottom:var(--space-8); }
+.wrap{ max-width:640px; margin:0 auto; padding:0 var(--space-4); }
+
+.topbar{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  display:grid; grid-template-columns:44px 1fr 44px; align-items:center;
+  padding:var(--space-3) var(--space-4);
+  background:color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--paper-line);
+}
+.topbar .brand{ text-align:center; }
+.topbar .brand-word{ font-family:var(--font-display); font-weight:600; font-size:1.05rem; letter-spacing:.01em; }
+.topbar .brand-sub{ font-size:.72rem; color:var(--ink-500); margin-top:1px; }
+.topbar-title{ text-align:center; font-family:var(--font-display); font-size:1.15rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.hero{ padding:var(--space-6) var(--space-4) var(--space-4); text-align:center; }
+.hero-mark{ font-family:var(--font-display); font-weight:600; font-size:2rem; color:var(--ink-900); }
+.hero-mark .grad{ color:var(--gold); }
+.hero-tagline{ margin-top:var(--space-2); color:var(--ink-500); font-size:.95rem; }
+
+.section-heading{
+  font-family:var(--font-display); font-weight:700; font-size:1.4rem;
+  margin:var(--space-6) 0 var(--space-3);
+  display:flex; align-items:baseline; justify-content:space-between; gap:var(--space-3);
+}
+.section-heading small{ font-family:var(--font-body); font-weight:400; font-size:.8rem; color:var(--ink-500); }
+
+/* ===================== BUTTONS ===================== */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:var(--space-2);
+  padding:11px 20px; border-radius:999px; font-weight:600; font-size:.92rem;
+  transition:transform .12s ease, background-color .15s ease, border-color .15s ease;
+  border:1.5px solid transparent; white-space:nowrap;
+}
+.btn:active{ transform:scale(.97); }
+.btn-primary{ background:var(--gold); color:var(--on-gold); }
+.btn-primary:hover{ background:var(--gold-strong); }
+.btn-ghost{ background:transparent; color:var(--ink-700); border-color:var(--paper-line); }
+.btn-ghost:hover{ border-color:var(--ink-300); }
+.btn-danger{ background:var(--red); color:var(--on-red); }
+.btn-danger:hover{ filter:brightness(1.08); }
+.btn-block{ display:flex; width:100%; }
+.btn-sm{ padding:8px 14px; font-size:.85rem; }
+.btn-icon{
+  width:40px; height:40px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+  color:var(--ink-700); background:transparent;
+}
+.btn-icon:hover{ background:var(--paper-panel); }
+.btn-text{ color:var(--ink-500); font-size:.85rem; text-decoration:underline; text-underline-offset:3px; }
+.btn-text.danger{ color:var(--red); }
+.btn[disabled]{ opacity:.5; pointer-events:none; }
+
+.fab-record{
+  position:fixed; bottom:calc(var(--space-6) + env(safe-area-inset-bottom,0px)); left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:var(--space-2);
+  background:var(--ink-900); color:var(--paper); padding:14px 26px; border-radius:999px;
+  box-shadow:0 8px 24px var(--shadow-color); font-weight:600; z-index:15;
+}
+.fab-record:active{ transform:translateX(-50%) scale(.97); }
+.fab-record .dot{ width:10px; height:10px; border-radius:50%; background:var(--red); }
+
+/* ===================== INPUTS ===================== */
+.input-underline{
+  display:block; width:100%; background:transparent; border:none; border-bottom:1.5px solid var(--paper-line);
+  padding:var(--space-2) 2px; color:var(--ink-900); font-weight:500;
+}
+.input-underline:focus{ border-color:var(--gold); }
+.input-underline.title-input{ font-family:var(--font-display); font-size:1.3rem; font-weight:700; }
+
+.select-pill{
+  background:var(--paper-panel); border:1.5px solid var(--paper-line); border-radius:999px;
+  padding:8px 14px; color:var(--ink-900); font-weight:500;
+}
+
+/* ===================== COURSE CARD (folder tab) ===================== */
+.course-grid{ display:flex; flex-direction:column; gap:var(--space-5); }
+.course-card{
+  position:relative; background:var(--paper-panel); border:1.5px solid var(--paper-line);
+  border-radius:4px 16px 16px 16px; padding:var(--space-5) var(--space-4) var(--space-4);
+  margin-top:14px; text-align:left;
+}
+.course-card::before{
+  content:''; position:absolute; top:-13px; left:var(--space-4); width:58px; height:15px;
+  background:var(--paper-panel); border:1.5px solid var(--paper-line); border-bottom-color:var(--paper-panel);
+  border-radius:7px 7px 0 0;
+}
+.course-card-name{ font-family:var(--font-display); font-size:1.25rem; font-weight:700; margin-bottom:4px; }
+.course-card-meta{ color:var(--ink-500); font-size:.85rem; }
+.course-card-foot{ display:flex; justify-content:space-between; align-items:center; margin-top:var(--space-4); }
+
+/* ===================== LECTURE ROW (ruled list) ===================== */
+.lecture-list{ border-top:1px solid var(--paper-line); }
+.lecture-row{
+  display:flex; align-items:center; gap:var(--space-3); padding:var(--space-4) var(--space-1);
+  border-bottom:1px solid var(--paper-line); text-align:left; width:100%;
+  border-left:3px solid transparent; transition:border-color .15s ease, background-color .15s ease;
+}
+.lecture-row:hover{ border-left-color:var(--gold); background:color-mix(in srgb, var(--gold-soft) 40%, transparent); }
+.lecture-row-main{ flex:1; min-width:0; }
+.lecture-row-title{ font-weight:600; font-size:1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lecture-row-meta{ color:var(--ink-500); font-size:.8rem; margin-top:2px; display:flex; gap:var(--space-2); align-items:center; }
+.no-transcript-tag{ background:var(--red-soft); color:var(--red); border-radius:5px; padding:1px 7px; font-size:.72rem; }
+.lecture-row-dur{ font-family:var(--font-mono); color:var(--ink-500); font-size:.82rem; flex-shrink:0; }
+
+/* ===================== EMPTY STATES ===================== */
+.empty-state{ text-align:center; padding:var(--space-7) var(--space-4); color:var(--ink-500); }
+.empty-state svg{ margin:0 auto var(--space-3); color:var(--ink-300); }
+.empty-state p{ max-width:36ch; margin:0 auto var(--space-4); }
+
+/* ===================== LANGUAGE PILLS ===================== */
+.lang-row{ display:flex; gap:var(--space-2); justify-content:center; flex-wrap:wrap; align-items:center; }
+.lang-pill{
+  padding:9px 18px; border-radius:999px; border:1.5px solid var(--paper-line); color:var(--ink-700); font-weight:600; font-size:.88rem;
+}
+.lang-pill.active{ background:var(--ink-900); color:var(--paper); border-color:var(--ink-900); }
+.current-lang-label{ text-align:center; font-size:.8rem; color:var(--ink-500); min-height:1.2em; margin-top:var(--space-2); }
+
+.dropdown{ position:relative; display:inline-block; }
+.dropdown-menu{
+  display:none; position:absolute; top:calc(100% + 6px); left:0; z-index:30; min-width:160px;
+  background:var(--paper-panel); border:1.5px solid var(--paper-line); border-radius:var(--radius-md);
+  box-shadow:0 10px 30px var(--shadow-color); overflow:hidden;
+}
+.dropdown-menu.open{ display:block; }
+.dropdown-menu button{ display:block; width:100%; text-align:left; padding:11px 14px; font-size:.88rem; }
+.dropdown-menu button:hover{ background:var(--gold-soft); }
+
+/* ===================== RECORDING SCREEN ===================== */
+.record-screen{ min-height:calc(100dvh - 60px); display:flex; flex-direction:column; padding:var(--space-4); }
+.record-header{ text-align:center; margin-bottom:var(--space-5); }
+.record-course-label{ color:var(--ink-500); font-size:.82rem; margin-bottom:var(--space-2); }
+.record-timer{
+  text-align:center; font-family:var(--font-mono); font-size:3rem; font-weight:500; letter-spacing:.02em;
+  display:flex; align-items:center; justify-content:center; gap:var(--space-3); margin:var(--space-5) 0;
+}
+.record-dot{ width:16px; height:16px; border-radius:50%; background:var(--red); flex-shrink:0; }
+.record-dot.live{ animation:pulse-rec 1.6s ease-in-out infinite; }
+.record-dot.paused{ background:var(--ink-300); }
+@keyframes pulse-rec{ 0%,100%{ transform:scale(1); opacity:1; } 50%{ transform:scale(1.25); opacity:.55; } }
+
+.live-feed{
+  flex:1; min-height:160px; max-height:44vh; overflow-y:auto; background:var(--paper-panel);
+  border:1.5px solid var(--paper-line); border-radius:var(--radius-lg); padding:var(--space-4);
+  background-image:repeating-linear-gradient(to bottom, transparent, transparent 30px, var(--paper-line) 30px, var(--paper-line) 31px);
+}
+.live-segment{ padding:4px 0; display:flex; align-items:baseline; gap:var(--space-2); }
+.live-segment.interim{ color:var(--ink-500); font-style:italic; }
+.live-segment-text{ flex:1; }
+.live-feed-empty{ color:var(--ink-300); text-align:center; padding-top:var(--space-6); }
+.live-cat-btn{
+  font-size:.65rem; font-weight:600; padding:2px 8px; border-radius:999px; border:1.5px solid var(--paper-line);
+  color:var(--ink-500); flex-shrink:0; white-space:nowrap;
+}
+.live-cat-btn-exercise{ background:var(--gold-soft); color:var(--gold-strong); border-color:var(--gold-soft); }
+.live-cat-btn-example{ background:var(--red-soft); color:var(--red); border-color:var(--red-soft); }
+.support-note{ font-size:.82rem; color:var(--ink-500); background:var(--gold-soft); border-radius:var(--radius-md); padding:var(--space-3); margin-bottom:var(--space-4); text-align:center; }
+
+.record-controls{ margin-top:var(--space-5); display:flex; flex-direction:column; align-items:center; gap:var(--space-4); }
+.record-controls .btn{ min-width:220px; }
+.permission-gate{ text-align:center; padding:var(--space-7) var(--space-4); }
+.permission-gate svg{ margin:0 auto var(--space-4); color:var(--ink-300); }
+
+/* ===================== PLAYER SCREEN ===================== */
+.player-head{ padding:var(--space-2) 0 var(--space-4); }
+.player-course-label{ color:var(--ink-500); font-size:.82rem; margin-bottom:2px; }
+
+.player-panel{
+  background:var(--paper-panel); border:1.5px solid var(--paper-line); border-radius:var(--radius-lg);
+  padding:var(--space-4); margin-bottom:var(--space-4); position:relative;
+}
+.seek-row{ display:flex; align-items:center; gap:var(--space-3); }
+.time-label{ font-family:var(--font-mono); font-size:.8rem; color:var(--ink-500); min-width:42px; text-align:center; }
+input[type="range"]#seek-bar{
+  -webkit-appearance:none; appearance:none; flex:1; height:5px; border-radius:999px; background:var(--paper-line); outline:none;
+}
+input[type="range"]#seek-bar::-webkit-slider-thumb{
+  -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--gold); cursor:pointer;
+  box-shadow:0 1px 4px var(--shadow-color);
+}
+input[type="range"]#seek-bar::-moz-range-thumb{ width:16px; height:16px; border-radius:50%; background:var(--gold); border:none; cursor:pointer; }
+
+.transport-row{ display:flex; align-items:center; justify-content:center; gap:var(--space-6); margin-top:var(--space-4); }
+.btn-transport{ display:flex; flex-direction:column; align-items:center; gap:2px; color:var(--ink-700); }
+.btn-transport .skip-label{ font-family:var(--font-mono); font-size:.68rem; color:var(--ink-500); }
+.btn-play{
+  width:64px; height:64px; border-radius:50%; background:var(--ink-900); color:var(--paper);
+  display:flex; align-items:center; justify-content:center;
+}
+.btn-play:active{ transform:scale(.95); }
+.speed-btn{
+  position:absolute; right:var(--space-4); top:var(--space-4);
+  font-family:var(--font-mono); font-weight:600; font-size:.85rem; color:var(--ink-700);
+  border:1.5px solid var(--paper-line); border-radius:999px; padding:5px 12px;
+}
+
+.action-row{ display:flex; flex-wrap:wrap; gap:var(--space-2); margin-bottom:var(--space-5); }
+.action-row .btn{ flex:1; min-width:110px; }
+
+.tool-panel{
+  background:var(--paper-panel); border:1.5px solid var(--paper-line); border-radius:var(--radius-lg);
+  padding:var(--space-4); margin-bottom:var(--space-5);
+}
+.tool-panel-row{ display:flex; gap:var(--space-2); align-items:center; }
+.tool-status{ font-size:.85rem; color:var(--ink-500); margin-top:var(--space-2); min-height:1.2em; }
+.translate-result{ margin-top:var(--space-3); white-space:pre-wrap; line-height:1.8; }
+
+.transcript-list{}
+.segment{
+  display:flex; gap:var(--space-3); padding:var(--space-3) var(--space-2); border-bottom:1px solid var(--paper-line);
+  align-items:baseline; width:100%; text-align:left; border-radius:var(--radius-sm);
+}
+.segment:hover{ background:var(--gold-soft); }
+.segment.active{ background:var(--gold-soft); border-left:3px solid var(--gold); }
+.segment-time{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-500); flex-shrink:0; min-width:40px; }
+.segment-text{ flex:1; }
+.segment[dir="rtl"]{ text-align:right; }
+.segment[dir="ltr"]{ text-align:left; }
+.segment-translation{ margin-top:3px; font-size:.92em; color:var(--ink-500); font-style:italic; line-height:1.5; }
+.cat-btn{
+  font-size:.68rem; font-weight:600; padding:3px 10px; border-radius:999px; border:1.5px solid var(--paper-line);
+  color:var(--ink-500); flex-shrink:0; white-space:nowrap;
+}
+.cat-btn-exercise{ background:var(--gold-soft); color:var(--gold-strong); border-color:var(--gold-soft); }
+.cat-btn-example{ background:var(--red-soft); color:var(--red); border-color:var(--red-soft); }
+.cat-pill{
+  font-size:.66rem; font-weight:700; padding:2px 8px; border-radius:999px; text-transform:uppercase;
+  letter-spacing:.02em; flex-shrink:0;
+}
+.cat-pill.cat-exercise{ background:var(--gold-soft); color:var(--gold-strong); }
+.cat-pill.cat-example{ background:var(--red-soft); color:var(--red); }
+
+/* ===================== MODAL ===================== */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(15,20,15,.5); display:flex; align-items:flex-end; justify-content:center;
+  z-index:100; opacity:0; transition:opacity .2s ease;
+}
+.modal-overlay.show{ opacity:1; }
+.modal-box{
+  background:var(--paper); border-radius:var(--radius-lg) var(--radius-lg) 0 0; padding:var(--space-5) var(--space-4);
+  width:100%; max-width:480px; transform:translateY(16px); transition:transform .22s ease;
+  padding-bottom:calc(var(--space-5) + env(safe-area-inset-bottom,0px));
+  max-height:80vh; overflow-y:auto;
+}
+.modal-overlay.show .modal-box{ transform:translateY(0); }
+@media (min-width:560px){
+  .modal-overlay{ align-items:center; }
+  .modal-box{ border-radius:var(--radius-lg); }
+}
+.modal-title{ font-family:var(--font-display); font-size:1.25rem; font-weight:700; margin-bottom:var(--space-4); }
+.modal-message{ color:var(--ink-700); margin-bottom:var(--space-4); line-height:1.7; }
+.modal-hint{ color:var(--ink-500); text-align:center; padding:var(--space-4) 0; }
+.modal-actions{ display:flex; gap:var(--space-3); justify-content:flex-end; margin-top:var(--space-5); }
+.picker-list{ display:flex; flex-direction:column; gap:var(--space-2); margin-bottom:var(--space-4); max-height:40vh; overflow-y:auto; }
+.picker-row{
+  text-align:left; padding:var(--space-3) var(--space-3); border:1.5px solid var(--paper-line); border-radius:var(--radius-md); font-weight:500;
+}
+.picker-row:hover{ border-color:var(--gold); background:var(--gold-soft); }
+
+/* ===================== TOAST ===================== */
+.toast-container{ position:fixed; bottom:calc(var(--space-5) + env(safe-area-inset-bottom,0px)); left:0; right:0; display:flex; flex-direction:column; align-items:center; gap:var(--space-2); z-index:200; pointer-events:none; }
+.toast{
+  background:var(--ink-900); color:var(--paper); padding:10px 20px; border-radius:999px; font-size:.85rem;
+  opacity:0; transform:translateY(8px); transition:opacity .25s ease, transform .25s ease; max-width:88vw; text-align:center;
+}
+.toast.show{ opacity:1; transform:translateY(0); }
+
+/* ===================== MISC ===================== */
+.storage-footnote{ text-align:center; color:var(--ink-300); font-size:.75rem; margin-top:var(--space-7); }
+.theme-toggle svg{ transition:transform .2s ease; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+/* ===================== CONSTANTS ===================== */
+var DB_NAME='lekseurUniversityDB', DB_VERSION=1;
+var SPEEDS=[0.5,0.75,1,1.25,1.5,1.75,2];
+var PRIMARY_LANGS=[
+  {code:'en-US', label:'English'},
+  {code:'fr-FR', label:'Français'},
+  {code:'ar-SA', label:'العربية'}
+];
+var MORE_LANGS=[
+  {code:'es-ES', label:'Español'},
+  {code:'de-DE', label:'Deutsch'},
+  {code:'it-IT', label:'Italiano'},
+  {code:'tr-TR', label:'Türkçe'}
+];
+var TRANSLATE_TARGETS=['French','English','Arabic','Spanish','German'];
+
+var SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+/* ===================== ICONS ===================== */
+var ICONS = {
+  back:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  mic:'<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0M12 19v3"/></svg>',
+  micSmall:'<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0014 0v1a1 1 0 11-2 0v-1a5 5 0 00-10 0v1a1 1 0 11-2 0v-1zM11 19h2v3h-2z"/></svg>',
+  play:'<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
+  pause:'<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="6" y="5" width="4.5" height="14" rx="1"/><rect x="13.5" y="5" width="4.5" height="14" rx="1"/></svg>',
+  skipFwd:'<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 5v14l8-7z"/><path d="M13 5v14l8-7z"/></svg>',
+  skipBack:'<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M20 5v14l-8-7z"/><path d="M11 5v14l-8-7z"/></svg>',
+  globe:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 2.7 4.2 6 4.2 9s-1.4 6.3-4.2 9c-2.8-2.7-4.2-6-4.2-9s1.4-6.3 4.2-9z"/></svg>',
+  download:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2m-8 0v12a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>',
+  pencil:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
+  sparkle:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',
+  sun:'<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>',
+  moon:'<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z"/></svg>',
+  folder:'<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>',
+  close:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>'
+};
+
+/* ===================== STATE ===================== */
+var state = { screen:'courses', courses:[], currentCourseId:null, currentLectureId:null, lectures:[], activeTranslationLang:null };
+var currentLectureData = null;
+
+/* ===================== UTILITIES ===================== */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,9); }
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function formatDuration(totalSeconds){
+  if(typeof totalSeconds!=='number' || !isFinite(totalSeconds)) totalSeconds = 0;
+  totalSeconds = Math.max(0, Math.floor(totalSeconds || 0));
+  var h = Math.floor(totalSeconds/3600), m = Math.floor((totalSeconds%3600)/60), s = totalSeconds%60;
+  return h>0 ? (h+':'+pad(m)+':'+pad(s)) : (m+':'+pad(s));
+}
+function formatDate(ts){
+  try{
+    return new Intl.DateTimeFormat('en-US', {day:'numeric', month:'long', year:'numeric'}).format(new Date(ts));
+  }catch(e){ return new Date(ts).toLocaleDateString(); }
+}
+function formatDateTime(ts){
+  try{
+    return new Intl.DateTimeFormat('en-US', {day:'numeric', month:'long', hour:'2-digit', minute:'2-digit'}).format(new Date(ts));
+  }catch(e){ return new Date(ts).toLocaleString(); }
+}
+function lectureCountLabel(n){
+  if(n===0) return 'No lectures yet';
+  if(n===1) return '1 lecture';
+  return n+' lectures';
+}
+function courseCountLabel(n){
+  if(n===0) return 'No courses yet';
+  if(n===1) return '1 course';
+  return n+' courses';
+}
+function sanitizeFilename(name){
+  var s = (name||'Lecture').replace(/[\/\\:*?"<>|]/g,'-').trim().slice(0,100);
+  return s || 'Lecture';
+}
+function escapeHtml(str){
+  var d = document.createElement('div');
+  d.textContent = str==null ? '' : String(str);
+  return d.innerHTML;
+}
+function formatBytes(bytes){
+  if(!bytes) return '0 KB';
+  var mb = bytes/(1024*1024);
+  if(mb<1) return Math.round(bytes/1024)+' KB';
+  if(mb<1024) return mb.toFixed(1)+' MB';
+  return (mb/1024).toFixed(2)+' GB';
+}
+function chunkTextByBytes(text, maxBytes){
+  var encoder = new TextEncoder();
+  var lines = text.split('\n');
+  var chunks = [], current = '';
+  for(var i=0;i<lines.length;i++){
+    var candidate = current ? (current+'\n'+lines[i]) : lines[i];
+    if(encoder.encode(candidate).length > maxBytes && current){
+      chunks.push(current);
+      current = lines[i];
+    } else {
+      current = candidate;
+    }
+  }
+  if(current) chunks.push(current);
+  return chunks.length ? chunks : [''];
+}
+
+/* ===================== INDEXEDDB ===================== */
+var dbInstance = null;
+function openDatabase(){
+  return new Promise(function(resolve,reject){
+    if(dbInstance) return resolve(dbInstance);
+    var req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = function(e){
+      var db = e.target.result;
+      if(!db.objectStoreNames.contains('courses')) db.createObjectStore('courses',{keyPath:'id'});
+      if(!db.objectStoreNames.contains('lectures')){
+        var store = db.createObjectStore('lectures',{keyPath:'id'});
+        store.createIndex('courseId','courseId',{unique:false});
+      }
+    };
+    req.onsuccess = function(e){ dbInstance = e.target.result; resolve(dbInstance); };
+    req.onerror = function(e){ reject(e.target.error); };
+  });
+}
+function txStore(storeName, mode){
+  return openDatabase().then(function(db){ return db.transaction(storeName, mode).objectStore(storeName); });
+}
+function dbPut(storeName, obj){
+  return txStore(storeName,'readwrite').then(function(store){
+    return new Promise(function(resolve,reject){
+      var req = store.put(obj);
+      req.onsuccess = function(){ resolve(obj); };
+      req.onerror = function(e){ reject(e.target.error); };
+    });
+  });
+}
+function dbGet(storeName, id){
+  return txStore(storeName,'readonly').then(function(store){
+    return new Promise(function(resolve,reject){
+      var req = store.get(id);
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(e){ reject(e.target.error); };
+    });
+  });
+}
+function dbGetAll(storeName){
+  return txStore(storeName,'readonly').then(function(store){
+    return new Promise(function(resolve,reject){
+      var req = store.getAll();
+      req.onsuccess = function(){ resolve(req.result || []); };
+      req.onerror = function(e){ reject(e.target.error); };
+    });
+  });
+}
+function dbGetAllByIndex(storeName, indexName, value){
+  return txStore(storeName,'readonly').then(function(store){
+    return new Promise(function(resolve,reject){
+      var idx = store.index(indexName);
+      var req = idx.getAll(value);
+      req.onsuccess = function(){ resolve(req.result || []); };
+      req.onerror = function(e){ reject(e.target.error); };
+    });
+  });
+}
+function dbDelete(storeName, id){
+  return txStore(storeName,'readwrite').then(function(store){
+    return new Promise(function(resolve,reject){
+      var req = store.delete(id);
+      req.onsuccess = function(){ resolve(); };
+      req.onerror = function(e){ reject(e.target.error); };
+    });
+  });
+}
+function deleteCourseCascade(courseId){
+  return dbGetAllByIndex('lectures','courseId',courseId).then(function(lectures){
+    var p = Promise.resolve();
+    lectures.forEach(function(lec){ p = p.then(function(){ return dbDelete('lectures', lec.id); }); });
+    return p.then(function(){ return dbDelete('courses', courseId); });
+  });
+}
+
+/* ===================== TOAST / MODALS ===================== */
+function showToast(message){
+  var container = document.getElementById('toast-container');
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = message;
+  container.appendChild(el);
+  requestAnimationFrame(function(){ el.classList.add('show'); });
+  setTimeout(function(){
+    el.classList.remove('show');
+    setTimeout(function(){ el.remove(); }, 300);
+  }, 3200);
+}
+
+function showConfirm(opts){
+  return new Promise(function(resolve){
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML =
+      '<div class="modal-box">'+
+        '<h3 class="modal-title">'+escapeHtml(opts.title)+'</h3>'+
+        '<p class="modal-message">'+escapeHtml(opts.message)+'</p>'+
+        '<div class="modal-actions">'+
+          '<button class="btn btn-ghost" data-c="0">'+escapeHtml(opts.cancelLabel||'Cancel')+'</button>'+
+          '<button class="btn '+(opts.danger?'btn-danger':'btn-primary')+'" data-c="1">'+escapeHtml(opts.confirmLabel||'Confirm')+'</button>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(overlay);
+    requestAnimationFrame(function(){ overlay.classList.add('show'); });
+    function close(result){
+      overlay.classList.remove('show');
+      setTimeout(function(){ overlay.remove(); }, 200);
+      resolve(result);
+    }
+    overlay.querySelector('[data-c="0"]').onclick = function(){ close(false); };
+    overlay.querySelector('[data-c="1"]').onclick = function(){ close(true); };
+    overlay.addEventListener('click', function(e){ if(e.target===overlay) close(false); });
+  });
+}
+
+function openNewCourseModal(onCreated){
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal-box">'+
+      '<h3 class="modal-title">New Course</h3>'+
+      '<input type="text" id="new-course-name" class="input-underline" placeholder="e.g. Calculus II">'+
+      '<div class="modal-actions">'+
+        '<button class="btn btn-ghost" data-c="0">Cancel</button>'+
+        '<button class="btn btn-primary" data-c="1">Create</button>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){ overlay.classList.add('show'); var i=overlay.querySelector('#new-course-name'); if(i) i.focus(); });
+  function close(){ overlay.classList.remove('show'); setTimeout(function(){ overlay.remove(); },200); }
+  var input = overlay.querySelector('#new-course-name');
+  overlay.querySelector('[data-c="0"]').onclick = close;
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) close(); });
+  input.addEventListener('keydown', function(e){ if(e.key==='Enter') doCreate(); });
+  overlay.querySelector('[data-c="1"]').onclick = doCreate;
+  function doCreate(){
+    var name = input.value.trim();
+    if(!name){ input.focus(); return; }
+    var course = { id:uid(), name:name, createdAt:Date.now(), updatedAt:Date.now() };
+    dbPut('courses', course).then(function(){
+      return dbGetAll('courses');
+    }).then(function(all){
+      state.courses = all;
+      close();
+      if(onCreated) onCreated(course); else render();
+    });
+  }
+}
+
+function openQuickRecordPicker(){
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  var rows = state.courses.length ?
+    state.courses.map(function(c){ return '<button class="picker-row" data-pick="'+c.id+'">'+escapeHtml(c.name)+'</button>'; }).join('') :
+    '<p class="modal-hint">No courses yet — create one below</p>';
+  overlay.innerHTML =
+    '<div class="modal-box">'+
+      '<h3 class="modal-title">Which course is this lecture for?</h3>'+
+      '<div class="picker-list">'+rows+'</div>'+
+      '<button class="btn btn-ghost btn-block" data-newc="1">'+ICONS.plus+' New Course</button>'+
+      '<div class="modal-actions"><button class="btn btn-ghost" data-c="0">Cancel</button></div>'+
+    '</div>';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){ overlay.classList.add('show'); });
+  function close(){ overlay.classList.remove('show'); setTimeout(function(){ overlay.remove(); },200); }
+  overlay.querySelector('[data-c="0"]').onclick = close;
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) close(); });
+  overlay.querySelectorAll('[data-pick]').forEach(function(btn){
+    btn.onclick = function(){ var id = btn.getAttribute('data-pick'); close(); goToRecording(id); };
+  });
+  overlay.querySelector('[data-newc]').onclick = function(){
+    close();
+    openNewCourseModal(function(course){ goToRecording(course.id); });
+  };
+}
+
+/* ===================== THEME ===================== */
+function initTheme(){
+  var saved = null;
+  try{ saved = localStorage.getItem('lekseur-theme'); }catch(e){}
+  if(saved==='light' || saved==='dark') document.documentElement.setAttribute('data-theme', saved);
+}
+function currentThemeIsDark(){
+  var attr = document.documentElement.getAttribute('data-theme');
+  if(attr==='dark') return true;
+  if(attr==='light') return false;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function toggleTheme(){
+  var next = currentThemeIsDark() ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try{ localStorage.setItem('lekseur-theme', next); }catch(e){}
+  render();
+}
+
+/* ===================== CAPABILITIES ===================== */
+function getCapability(name){
+  try{
+    if(!window.claude || !window.claude.use) return Promise.resolve(null);
+    return window.claude.use(name).catch(function(){ return null; });
+  }catch(e){ return Promise.resolve(null); }
+}
+function sampleErrorMessage(code){
+  var map = {
+    not_granted:'AI features aren\u2019t enabled for this session.',
+    rate_limited:'Too many requests right now — try again shortly.',
+    sampling_disabled:'This feature isn\u2019t available for your account right now.',
+    prompt_too_large:'This part of the transcript is too long.',
+    session_expired:'Please sign in again.',
+    refused:'Couldn\u2019t complete that request.',
+    empty_completion:'No response came back — try again.'
+  };
+  return map[code] || 'Something went wrong — try again.';
+}
+
+/* ===================== RECORDING MODULE ===================== */
+var recognition = null;
+var mediaRecorder = null;
+var mediaStream = null;
+var audioChunks = [];
+var shouldBeRecognizing = false;
+var activeStart = null;
+var accumulatedMs = 0;
+var pendingStart = {};
+var wakeLock = null;
+var recordingState = null; // {courseId, title, mimeType, segments, currentLang, currentLangLabel, isRecording, isPaused}
+
+function elapsedSeconds(){
+  var current = activeStart ? (Date.now() - activeStart) : 0;
+  return (accumulatedMs + current) / 1000;
+}
+function startTimer(){ activeStart = Date.now(); }
+function pauseTimerFn(){ if(activeStart){ accumulatedMs += Date.now() - activeStart; activeStart = null; } }
+
+function pickMimeType(){
+  var candidates = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
+  for(var i=0;i<candidates.length;i++){
+    try{ if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])) return candidates[i]; }catch(e){}
+  }
+  return '';
+}
+function mimeToExt(mime){
+  if(!mime) return 'webm';
+  if(mime.indexOf('ogg')>-1) return 'ogg';
+  if(mime.indexOf('mp4')>-1) return 'mp4';
+  return 'webm';
+}
+
+async function requestWakeLock(){
+  try{ if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); } }catch(e){}
+}
+function releaseWakeLock(){ if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock=null; } }
+
+function createRecognitionInstance(lang){
+  var r = new SpeechRecognitionCtor();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = lang;
+  r.onresult = handleRecognitionResult;
+  r.onerror = handleRecognitionError;
+  r.onend = function(){
+    if(shouldBeRecognizing && recognition === r){
+      try{ r.start(); }catch(e){}
+    }
+  };
+  return r;
+}
+
+function handleRecognitionResult(event){
+  var interim = '';
+  for(var i=event.resultIndex; i<event.results.length; i++){
+    var result = event.results[i];
+    if(pendingStart[i]===undefined) pendingStart[i] = elapsedSeconds();
+    if(result.isFinal){
+      var text = (result[0].transcript||'').trim();
+      if(text){
+        var seg = { text:text, start:pendingStart[i], end:elapsedSeconds(), lang:recordingState.currentLang, category:null };
+        recordingState.segments.push(seg);
+        appendLiveSegment(seg, recordingState.segments.length-1);
+      }
+      delete pendingStart[i];
+    } else {
+      interim += result[0].transcript;
+    }
+  }
+  updateInterimDisplay(interim);
+}
+function handleRecognitionError(event){
+  if(event.error==='not-allowed' || event.error==='service-not-allowed'){
+    shouldBeRecognizing = false;
+    showToast('Microphone permission was denied for live transcription');
+  } else if(event.error==='audio-capture'){
+    shouldBeRecognizing = false;
+    showToast('No microphone could be found');
+  }
+  /* no-speech / network / aborted: let onend handle the restart loop */
+}
+
+function liveCatBtnLabel(cat){ return !cat ? 'Tag' : (cat==='exercise' ? 'Exercise' : 'Example'); }
+function appendLiveSegment(seg, idx){
+  var feed = document.getElementById('rec-feed');
+  if(!feed) return;
+  var emptyMsg = feed.querySelector('.live-feed-empty');
+  if(emptyMsg) emptyMsg.remove();
+  var row = document.createElement('div');
+  row.className = 'live-segment';
+  row.dir = (seg.lang && seg.lang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+  var textSpan = document.createElement('span');
+  textSpan.className = 'live-segment-text';
+  textSpan.textContent = seg.text;
+  var tagBtn = document.createElement('button');
+  tagBtn.className = 'live-cat-btn' + (seg.category ? (' live-cat-btn-'+seg.category) : '');
+  tagBtn.setAttribute('data-action','cycle-live-category');
+  tagBtn.setAttribute('data-idx', String(idx));
+  tagBtn.textContent = liveCatBtnLabel(seg.category);
+  row.appendChild(textSpan);
+  row.appendChild(tagBtn);
+  var interimEl = feed.querySelector('.live-segment.interim');
+  if(interimEl) feed.insertBefore(row, interimEl); else feed.appendChild(row);
+  feed.scrollTop = feed.scrollHeight;
+}
+function renderLiveTaggedList(){
+  var el = document.getElementById('rec-tagged-list');
+  if(!el || !recordingState) return;
+  var tagged = recordingState.segments.filter(function(s){ return s.category==='exercise' || s.category==='example'; });
+  if(!tagged.length){
+    el.innerHTML = '<div class="live-feed-empty" style="padding-top:var(--space-3)">Tap \u201cTag\u201d under a line to mark it, or we\u2019ll detect these automatically once you finish.</div>';
+    return;
+  }
+  el.innerHTML = tagged.map(function(s){
+    var dir = (s.lang && s.lang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+    var label = s.category==='exercise' ? 'Exercise' : 'Example';
+    return '<div class="live-segment" dir="'+dir+'"><span class="cat-pill cat-'+s.category+'">'+label+'</span><span class="live-segment-text">'+escapeHtml(s.text)+'</span></div>';
+  }).join('');
+}
+function handleCycleLiveCategory(btn){
+  var idx = parseInt(btn.getAttribute('data-idx'),10);
+  if(!recordingState || !recordingState.segments[idx]) return;
+  var seg = recordingState.segments[idx];
+  var cur = seg.category || null;
+  var next = !cur ? 'exercise' : (cur==='exercise' ? 'example' : null);
+  seg.category = next;
+  btn.className = 'live-cat-btn' + (next ? (' live-cat-btn-'+next) : '');
+  btn.textContent = liveCatBtnLabel(next);
+  renderLiveTaggedList();
+}
+function updateInterimDisplay(text){
+  var feed = document.getElementById('rec-feed');
+  if(!feed) return;
+  var interimEl = feed.querySelector('.live-segment.interim');
+  if(!text){
+    if(interimEl) interimEl.remove();
+    return;
+  }
+  if(!interimEl){
+    interimEl = document.createElement('div');
+    interimEl.className = 'live-segment interim';
+    feed.appendChild(interimEl);
+  }
+  interimEl.dir = (recordingState.currentLang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+  interimEl.textContent = text;
+  feed.scrollTop = feed.scrollHeight;
+}
+
+var recTimerInterval = null;
+function updateTimerDisplay(){
+  var el = document.getElementById('rec-timer-value');
+  if(el) el.textContent = formatDuration(elapsedSeconds());
+}
+
+function updateLangPillsUI(){
+  document.querySelectorAll('.lang-pill').forEach(function(p){
+    p.classList.toggle('active', p.getAttribute('data-lang')===recordingState.currentLang);
+  });
+  var labelEl = document.getElementById('current-lang-label');
+  if(labelEl){
+    var isPrimary = PRIMARY_LANGS.some(function(l){ return l.code===recordingState.currentLang; });
+    labelEl.textContent = isPrimary ? '' : ('Now transcribing: ' + (recordingState.currentLangLabel||recordingState.currentLang));
+  }
+}
+
+function switchLanguage(langCode, label){
+  if(!recordingState || recordingState.currentLang===langCode) return;
+  recordingState.currentLang = langCode;
+  recordingState.currentLangLabel = label;
+  if(SpeechRecognitionCtor && recordingState.isRecording && !recordingState.isPaused){
+    shouldBeRecognizing = false;
+    if(recognition){ try{ recognition.stop(); }catch(e){} }
+    recognition = createRecognitionInstance(langCode);
+    shouldBeRecognizing = true;
+    try{ recognition.start(); }catch(e){}
+  }
+  updateLangPillsUI();
+}
+
+async function beginRecordingSession(courseId){
+  if(recordingState && recordingState.isRecording){
+    var existingTitleInput = document.getElementById('rec-title-input');
+    if(existingTitleInput) existingTitleInput.value = recordingState.title;
+    recordingState.segments.forEach(function(seg,i){ appendLiveSegment(seg,i); });
+    renderLiveTaggedList();
+    updateRecordUIState();
+    updateLangPillsUI();
+    var existingNote = document.getElementById('support-note');
+    if(existingNote && !SpeechRecognitionCtor) existingNote.style.display = 'block';
+    var existingGate = document.getElementById('permission-gate');
+    if(existingGate) existingGate.innerHTML = '';
+    return;
+  }
+  recordingState = {
+    courseId: courseId,
+    title: 'Lecture ' + formatDateTime(Date.now()),
+    mimeType: '',
+    segments: [],
+    currentLang: PRIMARY_LANGS[0].code,
+    currentLangLabel: PRIMARY_LANGS[0].label,
+    isRecording: false,
+    isPaused: false
+  };
+  audioChunks = [];
+  pendingStart = {};
+  accumulatedMs = 0;
+  activeStart = null;
+
+  var gate = document.getElementById('permission-gate');
+  try{
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+  }catch(e){
+    if(gate){
+      gate.innerHTML =
+        '<div class="permission-gate">'+ICONS.mic+
+        '<p style="margin-bottom:16px;color:var(--ink-500)">Couldn\u2019t reach the microphone. Grant permission in your browser, then try again.</p>'+
+        '<button class="btn btn-primary" data-action="retry-mic">Try Again</button></div>';
+    }
+    return;
+  }
+  if(gate) gate.innerHTML = '';
+
+  var mimeType = pickMimeType();
+  recordingState.mimeType = mimeType;
+  try{
+    mediaRecorder = mimeType ? new MediaRecorder(mediaStream, {mimeType:mimeType}) : new MediaRecorder(mediaStream);
+  }catch(e){
+    mediaRecorder = new MediaRecorder(mediaStream);
+  }
+  mediaRecorder.ondataavailable = function(e){ if(e.data && e.data.size>0) audioChunks.push(e.data); };
+  mediaRecorder.start(1000);
+
+  recordingState.isRecording = true;
+  recordingState.isPaused = false;
+  startTimer();
+  requestWakeLock();
+
+  if(SpeechRecognitionCtor){
+    recognition = createRecognitionInstance(recordingState.currentLang);
+    shouldBeRecognizing = true;
+    try{ recognition.start(); }catch(e){}
+  } else {
+    var note = document.getElementById('support-note');
+    if(note) note.style.display = 'block';
+  }
+
+  recTimerInterval = setInterval(updateTimerDisplay, 500);
+  updateRecordUIState();
+}
+
+function updateRecordUIState(){
+  var dot = document.getElementById('rec-dot');
+  var pauseBtn = document.getElementById('pause-btn-label');
+  if(!recordingState) return;
+  if(dot){
+    dot.classList.toggle('live', recordingState.isRecording && !recordingState.isPaused);
+    dot.classList.toggle('paused', recordingState.isPaused);
+  }
+  if(pauseBtn) pauseBtn.textContent = recordingState.isPaused ? 'Resume' : 'Pause';
+}
+
+function togglePauseRecording(){
+  if(!recordingState) return;
+  if(!recordingState.isPaused){
+    recordingState.isPaused = true;
+    shouldBeRecognizing = false;
+    if(recognition){ try{ recognition.stop(); }catch(e){} }
+    if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.pause();
+    pauseTimerFn();
+    releaseWakeLock();
+  } else {
+    recordingState.isPaused = false;
+    startTimer();
+    if(mediaRecorder && mediaRecorder.state==='paused') mediaRecorder.resume();
+    if(SpeechRecognitionCtor){
+      recognition = createRecognitionInstance(recordingState.currentLang);
+      shouldBeRecognizing = true;
+      try{ recognition.start(); }catch(e){}
+    }
+    requestWakeLock();
+  }
+  updateRecordUIState();
+}
+
+function stopMediaRecorderAndGetBlob(){
+  return new Promise(function(resolve){
+    if(!mediaRecorder || mediaRecorder.state==='inactive'){
+      resolve(new Blob(audioChunks, {type: (recordingState.mimeType||'audio/webm')}));
+      return;
+    }
+    mediaRecorder.onstop = function(){
+      resolve(new Blob(audioChunks, {type:(recordingState.mimeType||'audio/webm')}));
+    };
+    mediaRecorder.stop();
+  });
+}
+function stopStreamTracks(){
+  if(mediaStream){ mediaStream.getTracks().forEach(function(t){ t.stop(); }); mediaStream=null; }
+}
+function teardownRecordingTimers(){
+  if(recTimerInterval){ clearInterval(recTimerInterval); recTimerInterval=null; }
+  releaseWakeLock();
+}
+
+async function finishAndSaveRecording(){
+  if(!recordingState || !recordingState.isRecording) return;
+  var titleInput = document.getElementById('rec-title-input');
+  if(titleInput) recordingState.title = titleInput.value.trim() || recordingState.title;
+
+  shouldBeRecognizing = false;
+  if(recognition){ try{ recognition.stop(); }catch(e){} }
+  pauseTimerFn();
+  teardownRecordingTimers();
+
+  var audioBlob = await stopMediaRecorderAndGetBlob();
+  stopStreamTracks();
+
+  var lecture = {
+    id: uid(),
+    courseId: recordingState.courseId,
+    title: recordingState.title,
+    createdAt: Date.now(),
+    durationSec: elapsedSeconds(),
+    mimeType: recordingState.mimeType || 'audio/webm',
+    audioBlob: audioBlob,
+    segments: recordingState.segments,
+    translations: {},
+    polishedText: null
+  };
+  await dbPut('lectures', lecture);
+  var course = await dbGet('courses', lecture.courseId);
+  if(course){ course.updatedAt = Date.now(); await dbPut('courses', course); }
+  recordingState = null;
+  showToast('Lecture saved');
+  goToPlayer(lecture.id);
+  autoClassifySegments(lecture.id);
+}
+
+async function discardRecording(){
+  if(!recordingState) return;
+  var ok = await showConfirm({ title:'Discard this recording?', message:'This recording will be permanently deleted and won\u2019t be saved.', confirmLabel:'Discard', danger:true });
+  if(!ok) return;
+  var courseId = recordingState.courseId;
+  shouldBeRecognizing = false;
+  if(recognition){ try{ recognition.stop(); }catch(e){} }
+  if(mediaRecorder && mediaRecorder.state!=='inactive'){ try{ mediaRecorder.stop(); }catch(e){} }
+  stopStreamTracks();
+  teardownRecordingTimers();
+  recordingState = null;
+  goToCourse(courseId);
+}
+
+window.addEventListener('beforeunload', function(e){
+  if(recordingState && recordingState.isRecording){ e.preventDefault(); e.returnValue=''; }
+});
+
+/* ===================== PLAYER MODULE ===================== */
+var audioEl = null;
+var currentObjectUrl = null;
+var isDraggingSeek = false;
+var lastActiveIdx = -1;
+var speedIdx = 2;
+var knownDuration = 0; /* our own recorded duration; Chrome/webm sometimes reports audioEl.duration as Infinity */
+
+function teardownPlayer(){
+  if(audioEl){ audioEl.pause(); audioEl.src=''; audioEl=null; }
+  if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl=null; }
+  lastActiveIdx = -1; speedIdx = 2; knownDuration = 0;
+}
+function refreshTotalTimeLabel(){
+  var totalEl = document.getElementById('total-time-label');
+  if(totalEl) totalEl.textContent = formatDuration(knownDuration);
+}
+function setupPlayerAudio(lecture){
+  knownDuration = lecture.durationSec || 0;
+  currentObjectUrl = URL.createObjectURL(lecture.audioBlob);
+  audioEl = document.getElementById('player-audio');
+  audioEl.src = currentObjectUrl;
+  audioEl.addEventListener('timeupdate', onPlayerTimeUpdate);
+  audioEl.addEventListener('loadedmetadata', function(){
+    if(isFinite(audioEl.duration) && audioEl.duration>0) knownDuration = audioEl.duration;
+    refreshTotalTimeLabel();
+  });
+  audioEl.addEventListener('durationchange', function(){
+    if(isFinite(audioEl.duration) && audioEl.duration>0){ knownDuration = audioEl.duration; refreshTotalTimeLabel(); }
+  });
+  audioEl.addEventListener('play', function(){ setPlayIcon(true); });
+  audioEl.addEventListener('pause', function(){ setPlayIcon(false); });
+  audioEl.addEventListener('ended', function(){ setPlayIcon(false); });
+  refreshTotalTimeLabel();
+}
+function setPlayIcon(playing){
+  var btn = document.getElementById('play-pause-btn');
+  if(btn) btn.innerHTML = playing ? ICONS.pause : ICONS.play;
+}
+function onPlayerTimeUpdate(){
+  var t = audioEl.currentTime, d = knownDuration || 0;
+  var seekBar = document.getElementById('seek-bar');
+  if(seekBar && !isDraggingSeek) seekBar.value = d ? Math.min(100, t/d*100) : 0;
+  var curEl = document.getElementById('current-time-label');
+  if(curEl) curEl.textContent = formatDuration(t);
+  updateActiveTranscriptSegment(t);
+}
+function findActiveSegmentIndex(segments, t){
+  var idx = -1;
+  for(var i=0;i<segments.length;i++){ if(segments[i].start<=t) idx=i; else break; }
+  return idx;
+}
+function updateActiveTranscriptSegment(t){
+  if(!currentLectureData || !currentLectureData.segments) return;
+  var idx = findActiveSegmentIndex(currentLectureData.segments, t);
+  if(idx===lastActiveIdx) return;
+  var list = document.getElementById('transcript-list');
+  if(list){
+    var prev = list.querySelector('.segment.active');
+    if(prev) prev.classList.remove('active');
+    if(idx>=0){
+      var el = list.children[idx];
+      if(el){ el.classList.add('active'); el.scrollIntoView({block:'nearest', behavior:'smooth'}); }
+    }
+  }
+  lastActiveIdx = idx;
+}
+function togglePlayPause(){ if(!audioEl) return; if(audioEl.paused) audioEl.play(); else audioEl.pause(); }
+function skipSeconds(delta){
+  if(!audioEl) return;
+  var d = knownDuration || Infinity;
+  audioEl.currentTime = Math.min(Math.max(0, audioEl.currentTime+delta), d);
+}
+function cycleSpeed(){
+  if(!audioEl) return;
+  speedIdx = (speedIdx+1) % SPEEDS.length;
+  audioEl.playbackRate = SPEEDS[speedIdx];
+  var el = document.getElementById('speed-label');
+  if(el) el.textContent = SPEEDS[speedIdx]+'×';
+}
+
+/* ===================== TRANSLATE / POLISH ===================== */
+function renderTranslateToggleRow(){
+  var el = document.getElementById('translate-toggle-row');
+  if(!el) return;
+  if(state.activeTranslationLang){
+    el.innerHTML = '<span style="font-size:.85rem;color:var(--ink-500)">Showing <strong>'+escapeHtml(state.activeTranslationLang)+'</strong> inline below each line \u2014 </span><button class="btn-text" data-action="hide-translation">Hide</button>';
+  } else {
+    el.innerHTML = '';
+  }
+}
+async function handleTranslate(){
+  var select = document.getElementById('translate-lang');
+  var statusEl = document.getElementById('translate-status');
+  if(!select || !currentLectureData) return;
+  var targetLang = select.value;
+
+  if(currentLectureData.translations && Array.isArray(currentLectureData.translations[targetLang])){
+    state.activeTranslationLang = targetLang;
+    statusEl.textContent = '';
+    refreshTranscriptAndExercisesUI();
+    return;
+  }
+  var segments = currentLectureData.segments || [];
+  if(!segments.length){ statusEl.textContent='There\u2019s no transcript to translate.'; return; }
+
+  var sample = await getCapability('sample');
+  if(!sample){ statusEl.textContent = 'Translation isn\u2019t available in this session.'; return; }
+
+  var numbered = segments.map(function(s,i){ return i+'. '+s.text; }).join('\n');
+  var chunks = chunkTextByBytes(numbered, 30000);
+  var translations = new Array(segments.length);
+  for(var c=0;c<chunks.length;c++){
+    statusEl.textContent = chunks.length>1 ? ('Translating\u2026 ('+(c+1)+'/'+chunks.length+')') : 'Translating\u2026';
+    var prompt = 'Translate each numbered line of this university lecture transcript into '+targetLang+'. Keep numbers and technical/scientific terms accurate. Each line number is the original segment index (lines may not be sequential in this excerpt) — translate every line independently but use the surrounding lines for context. Return ONLY JSON of the form {"items":[{"i":<index>,"t":"<translation>"}]}, one entry per line below, no commentary:\n\n'+chunks[c];
+    try{
+      var res = await sample.json(prompt, {modelTier:'quick', cache:true});
+      if(res && Array.isArray(res.items)){
+        res.items.forEach(function(it){
+          if(it && typeof it.i==='number' && it.i>=0 && it.i<translations.length && typeof it.t==='string') translations[it.i]=it.t;
+        });
+      }
+    }catch(e){
+      statusEl.textContent = sampleErrorMessage(e.code);
+      return;
+    }
+  }
+  for(var k=0;k<translations.length;k++){ if(translations[k]===undefined) translations[k]=segments[k].text; }
+
+  currentLectureData.translations = currentLectureData.translations || {};
+  currentLectureData.translations[targetLang] = translations;
+  await dbPut('lectures', currentLectureData);
+  state.activeTranslationLang = targetLang;
+  statusEl.textContent = '';
+  refreshTranscriptAndExercisesUI();
+}
+
+async function handlePolish(){
+  var statusEl = document.getElementById('polish-status');
+  var resultEl = document.getElementById('polish-result');
+  if(!currentLectureData) return;
+  if(currentLectureData.polishedText){
+    resultEl.textContent = currentLectureData.polishedText;
+    if(statusEl) statusEl.textContent = '';
+    return;
+  }
+  var fullText = currentLectureData.segments.map(function(s){ return s.text; }).join('\n');
+  if(!fullText.trim()){ if(statusEl) statusEl.textContent='There\u2019s no transcript to clean up.'; return; }
+
+  var sample = await getCapability('sample');
+  if(!sample){ if(statusEl) statusEl.textContent='This feature isn\u2019t available in this session.'; return; }
+
+  var chunks = chunkTextByBytes(fullText, 40000);
+  var polished = [];
+  for(var i=0;i<chunks.length;i++){
+    if(statusEl) statusEl.textContent = chunks.length>1 ? ('Cleaning up\u2026 ('+(i+1)+'/'+chunks.length+')') : 'Cleaning up\u2026';
+    var prompt = 'This is an automatic transcript of university lecture speech. Fix punctuation only, and write any spoken numbers in correct numeral form (e.g. 25 instead of twenty-five). Convert spoken mathematical or scientific symbols to their symbols where the context is clear (such as +, -, =, %). Do not add or remove any sentence or piece of information, and do not translate the text. Return only the formatted text with no commentary:\n\n'+chunks[i];
+    try{
+      var res = await sample(prompt, {modelTier:'quick', cache:true});
+      polished.push(res.text);
+    }catch(e){
+      if(statusEl) statusEl.textContent = sampleErrorMessage(e.code);
+      if(polished.length) resultEl.textContent = polished.join('\n\n');
+      return;
+    }
+  }
+  var finalText = polished.join('\n\n');
+  resultEl.textContent = finalText;
+  if(statusEl) statusEl.textContent = '';
+  currentLectureData.polishedText = finalText;
+  await dbPut('lectures', currentLectureData);
+}
+
+/* ===================== CATEGORY (manual + automatic classification) ===================== */
+function refreshTranscriptAndExercisesUI(){
+  if(!currentLectureData) return;
+  var tEl = document.getElementById('transcript-list');
+  if(tEl) tEl.innerHTML = renderTranscriptList(currentLectureData.segments);
+  var eEl = document.getElementById('exercises-list');
+  if(eEl) eEl.innerHTML = renderExercisesList(currentLectureData.segments);
+  renderTranslateToggleRow();
+}
+async function handleCycleCategory(btn){
+  var idx = parseInt(btn.getAttribute('data-idx'),10);
+  if(!currentLectureData || !currentLectureData.segments[idx]) return;
+  var seg = currentLectureData.segments[idx];
+  var cur = seg.category || null;
+  seg.category = !cur ? 'exercise' : (cur==='exercise' ? 'example' : null);
+  await dbPut('lectures', currentLectureData);
+  refreshTranscriptAndExercisesUI();
+}
+async function autoClassifySegments(lectureId){
+  try{
+    var lecture = await dbGet('lectures', lectureId);
+    if(!lecture || !lecture.segments || !lecture.segments.length) return;
+    var toClassify = [];
+    lecture.segments.forEach(function(s,i){ if(!s.category) toClassify.push(i); });
+    if(!toClassify.length) return;
+
+    var sample = await getCapability('sample');
+    if(!sample) return;
+
+    var lines = toClassify.map(function(i){ return i+'. '+lecture.segments[i].text; }).join('\n');
+    var chunks = chunkTextByBytes(lines, 12000);
+    var updates = {};
+    for(var c=0;c<chunks.length;c++){
+      var prompt = 'You are organizing a university lecture transcript. Below are numbered lines (each number is the original transcript segment index, not sequential). For each line, decide whether the teacher is posing a practice problem for students to solve ("exercise"), walking through a worked or illustrative example ("example"), or neither ("general"). Only use "exercise" or "example" when reasonably confident; otherwise use "general". Return ONLY JSON of the form {"items":[{"i":<index>,"c":"exercise"|"example"|"general"}]}, one entry per line, no commentary:\n\n'+chunks[c];
+      try{
+        var res = await sample.json(prompt, {modelTier:'quick', cache:true});
+        if(res && Array.isArray(res.items)){
+          res.items.forEach(function(it){
+            if(it && typeof it.i==='number' && (it.c==='exercise'||it.c==='example')) updates[it.i]=it.c;
+          });
+        }
+      }catch(e){ /* leave this chunk unclassified on failure */ }
+    }
+    if(!Object.keys(updates).length) return;
+
+    var fresh = await dbGet('lectures', lectureId);
+    if(!fresh || !fresh.segments) return;
+    var changed = false;
+    Object.keys(updates).forEach(function(k){
+      var idx = parseInt(k,10);
+      if(fresh.segments[idx] && !fresh.segments[idx].category){ fresh.segments[idx].category = updates[k]; changed = true; }
+    });
+    if(!changed) return;
+    await dbPut('lectures', fresh);
+    if(state.screen==='player' && state.currentLectureId===lectureId){
+      currentLectureData = fresh;
+      refreshTranscriptAndExercisesUI();
+    }
+  }catch(e){ /* background pass — fail silently */ }
+}
+
+/* ===================== EXPORT ===================== */
+function buildTranscriptText(lecture){
+  var header = lecture.title + '\n' + formatDate(lecture.createdAt) + '\n' + '-'.repeat(20) + '\n\n';
+  if(!lecture.segments.length) return header + '(No transcript for this lecture)';
+  return header + lecture.segments.map(function(s){ return '['+formatDuration(s.start)+'] '+s.text; }).join('\n');
+}
+async function exportTranscript(){
+  if(!currentLectureData) return;
+  var downloads = await getCapability('downloads');
+  if(!downloads){ showToast('Downloads aren\u2019t available here'); return; }
+  var text = buildTranscriptText(currentLectureData);
+  try{
+    await downloads.save({ filename: sanitizeFilename(currentLectureData.title)+'.txt', data: text });
+    showToast('Transcript saved');
+  }catch(e){ showToast('Couldn\u2019t save the file'); }
+}
+async function exportAudio(){
+  if(!currentLectureData) return;
+  var downloads = await getCapability('downloads');
+  if(!downloads){ showToast('Downloads aren\u2019t available here'); return; }
+  var ext = mimeToExt(currentLectureData.mimeType);
+  try{
+    await downloads.save({ filename: sanitizeFilename(currentLectureData.title)+'.'+ext, data: currentLectureData.audioBlob });
+    showToast('Audio saved');
+  }catch(e){ showToast('Couldn\u2019t save the file'); }
+}
+
+/* ===================== NAVIGATION ===================== */
+function goToCourses(){ teardownPlayer(); state.screen='courses'; state.currentCourseId=null; state.currentLectureId=null; state.activeTranslationLang=null; render(); }
+function goToCourse(courseId){ teardownPlayer(); state.screen='course'; state.currentCourseId=courseId; state.activeTranslationLang=null; render(); }
+function goToPlayer(lectureId){ teardownPlayer(); state.screen='player'; state.currentLectureId=lectureId; state.activeTranslationLang=null; render(); }
+function goToRecording(courseId){ state.screen='recording'; state.currentCourseId=courseId; render(); }
+
+/* ===================== RENDER: SHARED ===================== */
+function themeToggleBtn(){
+  return '<button class="btn-icon theme-toggle" data-action="toggle-theme" title="Toggle theme">'+(currentThemeIsDark()?ICONS.sun:ICONS.moon)+'</button>';
+}
+
+/* ===================== RENDER: COURSES ===================== */
+function renderCoursesScreen(){
+  var top =
+    '<div class="topbar">'+
+      '<span></span>'+
+      '<div class="brand"><div class="brand-word">Lekseur <span style="color:var(--gold)">University</span></div></div>'+
+      themeToggleBtn()+
+    '</div>';
+
+  var hero =
+    '<div class="hero">'+
+      '<div class="hero-mark">Lekseur <span class="grad">University</span></div>'+
+      '<div class="hero-tagline">Record your lectures and get them transcribed automatically, in any language your professor speaks</div>'+
+    '</div>';
+
+  var body = '<div class="wrap">';
+  body += '<div class="section-heading">Your Courses <small>'+courseCountLabel(state.courses.length)+'</small></div>';
+
+  if(!state.courses.length){
+    body +=
+      '<div class="empty-state">'+ICONS.folder+
+      '<p>Create your first course to start recording lectures and transcribing them automatically in class.</p>'+
+      '<button class="btn btn-primary" data-action="new-course">'+ICONS.plus+' New Course</button>'+
+      '</div>';
+  } else {
+    body += '<div class="course-grid">';
+    state.courses.slice().sort(function(a,b){ return (b.updatedAt||b.createdAt)-(a.updatedAt||a.createdAt); }).forEach(function(c){
+      body +=
+        '<button class="course-card" data-action="go-course" data-id="'+c.id+'">'+
+          '<div class="course-card-name">'+escapeHtml(c.name)+'</div>'+
+          '<div class="course-card-meta" data-lecture-count="'+c.id+'">\u2026</div>'+
+        '</button>';
+    });
+    body += '</div>';
+    body += '<div style="text-align:center;margin-top:var(--space-5)"><button class="btn btn-ghost" data-action="new-course">'+ICONS.plus+' New Course</button></div>';
+  }
+  body += '<div class="storage-footnote" id="storage-footnote"></div>';
+  body += '</div>';
+
+  var fab = '<button class="fab-record" data-action="quick-record"><span class="dot"></span> New Recording</button>';
+
+  return top + hero + body + fab;
+}
+
+async function fillCourseCardCounts(){
+  for(var i=0;i<state.courses.length;i++){
+    var c = state.courses[i];
+    var lectures = await dbGetAllByIndex('lectures','courseId', c.id);
+    var el = document.querySelector('[data-lecture-count="'+c.id+'"]');
+    if(el) el.textContent = lectureCountLabel(lectures.length);
+  }
+}
+async function fillStorageFootnote(){
+  var el = document.getElementById('storage-footnote');
+  if(!el) return;
+  if(navigator.storage && navigator.storage.estimate){
+    try{
+      var est = await navigator.storage.estimate();
+      el.textContent = 'Storage used on this device: '+formatBytes(est.usage);
+    }catch(e){ el.textContent=''; }
+  }
+}
+
+/* ===================== RENDER: COURSE DETAIL ===================== */
+async function renderCourseScreen(){
+  var course = await dbGet('courses', state.currentCourseId);
+  if(!course){ goToCourses(); return ''; }
+  var lectures = await dbGetAllByIndex('lectures','courseId', course.id);
+  lectures.sort(function(a,b){ return b.createdAt-a.createdAt; });
+
+  var top =
+    '<div class="topbar">'+
+      '<button class="btn-icon" data-action="go-courses" title="Back">'+ICONS.back+'</button>'+
+      '<div class="topbar-title">'+escapeHtml(course.name)+'</div>'+
+      themeToggleBtn()+
+    '</div>';
+
+  var body = '<div class="wrap" style="padding-top:var(--space-5)">';
+  body += '<input type="text" id="course-title-input" class="input-underline title-input" value="'+escapeHtml(course.name)+'" style="margin-bottom:var(--space-2)">';
+  body += '<div style="color:var(--ink-500);font-size:.85rem;margin-bottom:var(--space-5)">'+lectureCountLabel(lectures.length)+'</div>';
+
+  body += '<div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-5)">';
+  body += '<button class="btn btn-primary" data-action="new-lecture">'+ICONS.plus+' New Lecture</button>';
+  body += '<button class="btn btn-text danger" data-action="delete-course" data-id="'+course.id+'" style="margin-inline-start:auto">Delete Course</button>';
+  body += '</div>';
+
+  if(!lectures.length){
+    body +=
+      '<div class="empty-state">'+ICONS.micSmall+
+      '<p>No lectures recorded in this course yet.</p>'+
+      '</div>';
+  } else {
+    body += '<div class="lecture-list">';
+    lectures.forEach(function(l){
+      body +=
+        '<button class="lecture-row" data-action="go-player" data-id="'+l.id+'">'+
+          '<div class="lecture-row-main">'+
+            '<div class="lecture-row-title">'+escapeHtml(l.title)+'</div>'+
+            '<div class="lecture-row-meta"><span>'+formatDate(l.createdAt)+'</span>'+(l.segments&&l.segments.length?'':'<span class="no-transcript-tag">No transcript</span>')+'</div>'+
+          '</div>'+
+          '<div class="lecture-row-dur">'+formatDuration(l.durationSec)+'</div>'+
+        '</button>';
+    });
+    body += '</div>';
+  }
+  body += '</div>';
+  return top + body;
+}
+
+/* ===================== RENDER: RECORDING ===================== */
+function renderRecordingScreen(){
+  var supportNoteHtml = SpeechRecognitionCtor ? '' :
+    '<div class="support-note" id="support-note">Live transcription isn\u2019t supported in this browser, but audio recording will still work. Use Chrome or Edge for automatic transcription.</div>';
+
+  var langPills = PRIMARY_LANGS.map(function(l,i){
+    return '<button class="lang-pill'+(i===0?' active':'')+'" data-action="switch-lang" data-lang="'+l.code+'" data-label="'+l.label+'">'+l.label+'</button>';
+  }).join('');
+  var moreItems = MORE_LANGS.map(function(l){
+    return '<button data-action="switch-lang" data-lang="'+l.code+'" data-label="'+l.label+'">'+l.label+'</button>';
+  }).join('');
+
+  var html =
+    '<div class="record-screen">'+
+      '<div class="rec-title-wrap">'+
+        '<div class="record-course-label">New Recording</div>'+
+        '<input type="text" id="rec-title-input" class="input-underline title-input" value="Lecture '+formatDateTime(Date.now())+'">'+
+      '</div>'+
+      '<div id="permission-gate">'+
+        '<div class="permission-gate">'+ICONS.mic+'<p style="color:var(--ink-500)">Requesting microphone access\u2026</p></div>'+
+      '</div>'+
+      supportNoteHtml+
+      '<div class="record-timer"><span class="record-dot" id="rec-dot"></span><span id="rec-timer-value">0:00</span></div>'+
+      '<div class="lang-row">'+
+        langPills+
+        '<div class="dropdown">'+
+          '<button class="btn-icon" data-action="toggle-more-langs" title="More languages">'+ICONS.globe+'</button>'+
+          '<div class="dropdown-menu" id="more-langs-menu">'+moreItems+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="current-lang-label" id="current-lang-label"></div>'+
+      '<div class="live-feed" id="rec-feed" style="margin-top:var(--space-4)"><div class="live-feed-empty">Your words will appear here as you speak\u2026</div></div>'+
+      '<div class="section-heading" style="margin-top:var(--space-4);margin-bottom:var(--space-2);font-size:1rem">Exercises &amp; Examples</div>'+
+      '<div class="live-feed" id="rec-tagged-list" style="max-height:20vh;min-height:56px"><div class="live-feed-empty" style="padding-top:var(--space-3)">Tap \u201cTag\u201d under a line to mark it, or we\u2019ll detect these automatically once you finish.</div></div>'+
+      '<div class="record-controls">'+
+        '<button class="btn btn-ghost btn-block" data-action="toggle-pause"><span id="pause-btn-label">Pause</span></button>'+
+        '<button class="btn btn-primary btn-block" data-action="finish-recording">Finish &amp; Save</button>'+
+        '<button class="btn-text danger" data-action="discard-recording">Discard without saving</button>'+
+      '</div>'+
+    '</div>';
+  return html;
+}
+
+/* ===================== RENDER: PLAYER ===================== */
+async function renderPlayerScreen(){
+  var lecture = await dbGet('lectures', state.currentLectureId);
+  if(!lecture){ goToCourses(); return ''; }
+  currentLectureData = lecture;
+  var course = await dbGet('courses', lecture.courseId);
+
+  var top =
+    '<div class="topbar">'+
+      '<button class="btn-icon" data-action="go-course" data-id="'+lecture.courseId+'" title="Back">'+ICONS.back+'</button>'+
+      '<div class="topbar-title">Playback</div>'+
+      themeToggleBtn()+
+    '</div>';
+
+  var body = '<div class="wrap" style="padding-top:var(--space-5)">';
+  body += '<div class="player-head">';
+  body += '<div class="player-course-label">'+(course?escapeHtml(course.name):'')+'</div>';
+  body += '<input type="text" id="lecture-title-input" class="input-underline title-input" value="'+escapeHtml(lecture.title)+'">';
+  body += '</div>';
+
+  body += '<audio id="player-audio" preload="metadata"></audio>';
+  body += '<div class="player-panel">';
+  body += '<button class="speed-btn" id="speed-label-btn" data-action="cycle-speed"><span id="speed-label">1×</span></button>';
+  body += '<div class="seek-row" style="margin-top:var(--space-2)">';
+  body += '<span class="time-label" id="current-time-label">0:00</span>';
+  body += '<input type="range" id="seek-bar" min="0" max="100" value="0" step="0.1">';
+  body += '<span class="time-label" id="total-time-label">'+formatDuration(lecture.durationSec)+'</span>';
+  body += '</div>';
+  body += '<div class="transport-row">';
+  body += '<button class="btn-transport" data-action="skip-back">'+ICONS.skipBack+'<span class="skip-label">10</span></button>';
+  body += '<button class="btn-play" id="play-pause-btn" data-action="toggle-play">'+ICONS.play+'</button>';
+  body += '<button class="btn-transport" data-action="skip-forward">'+ICONS.skipFwd+'<span class="skip-label">10</span></button>';
+  body += '</div>';
+  body += '</div>';
+
+  body += '<div class="action-row">';
+  body += '<button class="btn btn-ghost" data-action="toggle-translate-panel">'+ICONS.globe+' Translate</button>';
+  body += '<button class="btn btn-ghost" data-action="toggle-polish-panel">'+ICONS.sparkle+' Clean Up</button>';
+  body += '<div class="dropdown" style="flex:1">'+
+            '<button class="btn btn-ghost btn-block" data-action="toggle-download-menu">'+ICONS.download+' Download</button>'+
+            '<div class="dropdown-menu" id="download-menu">'+
+              '<button data-action="download-transcript">'+ICONS.download+' Transcript (.txt)</button>'+
+              '<button data-action="download-audio">'+ICONS.download+' Audio recording</button>'+
+            '</div>'+
+          '</div>';
+  body += '<button class="btn btn-text danger" data-action="delete-lecture" data-id="'+lecture.id+'">'+ICONS.trash+' Delete</button>';
+  body += '</div>';
+
+  body += '<div class="tool-panel" id="translate-panel" hidden>'+
+            '<div class="tool-panel-row">'+
+              '<select id="translate-lang" class="select-pill">'+
+                TRANSLATE_TARGETS.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('')+
+              '</select>'+
+              '<button class="btn btn-primary btn-sm" data-action="do-translate">Translate</button>'+
+            '</div>'+
+            '<div class="tool-status" id="translate-status"></div>'+
+            '<div id="translate-toggle-row" style="margin-top:var(--space-2)"></div>'+
+          '</div>';
+
+  body += '<div class="tool-panel" id="polish-panel" hidden>'+
+            '<div class="tool-panel-row">'+
+              '<p style="color:var(--ink-500);font-size:.85rem;flex:1">Automatic AI cleanup of numbers, symbols, and punctuation</p>'+
+              '<button class="btn btn-primary btn-sm" data-action="do-polish">Clean up</button>'+
+            '</div>'+
+            '<div class="tool-status" id="polish-status"></div>'+
+            '<div class="translate-result" id="polish-result"></div>'+
+          '</div>';
+
+  body += '<div class="section-heading" style="margin-top:var(--space-4)">Exercises &amp; Examples</div>';
+  body += '<div class="transcript-list" id="exercises-list">'+renderExercisesList(lecture.segments)+'</div>';
+  body += '<div class="section-heading" style="margin-top:var(--space-6)">Transcript</div>';
+  body += '<div class="transcript-list" id="transcript-list">'+renderTranscriptList(lecture.segments)+'</div>';
+  body += '</div>';
+
+  return top + body;
+}
+function activeTranslationsArray(){
+  var lang = state.activeTranslationLang;
+  if(!lang || !currentLectureData || !currentLectureData.translations) return null;
+  var arr = currentLectureData.translations[lang];
+  return Array.isArray(arr) ? arr : null;
+}
+function renderTranscriptList(segments){
+  if(!segments || !segments.length){
+    return '<div class="empty-state"><p>No transcript for this lecture'+(SpeechRecognitionCtor?'':' — this browser doesn\u2019t support live transcription')+'.</p></div>';
+  }
+  var activeTranslations = activeTranslationsArray();
+  var tDir = state.activeTranslationLang==='Arabic' ? 'rtl' : 'ltr';
+  return segments.map(function(seg,i){
+    var dir = (seg.lang && seg.lang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+    var cat = seg.category || null;
+    var translationHtml = (activeTranslations && activeTranslations[i]) ? ('<div class="segment-translation" dir="'+tDir+'">'+escapeHtml(activeTranslations[i])+'</div>') : '';
+    return '<div class="segment" data-idx="'+i+'" dir="'+dir+'">'+
+             '<span class="segment-time">'+formatDuration(seg.start)+'</span>'+
+             '<span class="segment-text">'+escapeHtml(seg.text)+translationHtml+'</span>'+
+             '<button class="cat-btn'+(cat?(' cat-btn-'+cat):'')+'" data-action="cycle-category" data-idx="'+i+'">'+liveCatBtnLabel(cat)+'</button>'+
+           '</div>';
+  }).join('');
+}
+function renderExercisesList(segments){
+  var activeTranslations = activeTranslationsArray();
+  var tDir = state.activeTranslationLang==='Arabic' ? 'rtl' : 'ltr';
+  var taggedIdx = [];
+  (segments||[]).forEach(function(s,i){ if(s.category==='exercise'||s.category==='example') taggedIdx.push(i); });
+  if(!taggedIdx.length){
+    return '<div class="empty-state" style="padding:var(--space-6) var(--space-4)"><p>No exercises or examples marked yet. They\u2019re detected automatically once transcription finishes, or tap the tag button on any line in the transcript below.</p></div>';
+  }
+  return taggedIdx.map(function(i){
+    var seg = segments[i];
+    var dir = (seg.lang && seg.lang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+    var label = seg.category==='exercise' ? 'Exercise' : 'Example';
+    var translationHtml = (activeTranslations && activeTranslations[i]) ? ('<div class="segment-translation" dir="'+tDir+'">'+escapeHtml(activeTranslations[i])+'</div>') : '';
+    return '<div class="segment" data-idx="'+i+'" dir="'+dir+'">'+
+             '<span class="segment-time">'+formatDuration(seg.start)+'</span>'+
+             '<span class="cat-pill cat-'+seg.category+'">'+label+'</span>'+
+             '<span class="segment-text">'+escapeHtml(seg.text)+translationHtml+'</span>'+
+             '<button class="cat-btn cat-btn-'+seg.category+'" data-action="cycle-category" data-idx="'+i+'">'+label+'</button>'+
+           '</div>';
+  }).join('');
+}
+
+/* ===================== MASTER RENDER ===================== */
+async function render(){
+  var app = document.getElementById('app');
+  if(state.screen==='courses'){
+    app.innerHTML = renderCoursesScreen();
+    fillCourseCardCounts();
+    fillStorageFootnote();
+  } else if(state.screen==='course'){
+    app.innerHTML = await renderCourseScreen();
+  } else if(state.screen==='recording'){
+    app.innerHTML = renderRecordingScreen();
+    beginRecordingSession(state.currentCourseId);
+  } else if(state.screen==='player'){
+    app.innerHTML = await renderPlayerScreen();
+    setupPlayerAudio(currentLectureData);
+  }
+}
+
+/* ===================== EVENT DELEGATION ===================== */
+function toggleDropdownEl(id){
+  var el = document.getElementById(id);
+  if(!el) return;
+  var wasOpen = el.classList.contains('open');
+  document.querySelectorAll('.dropdown-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  if(!wasOpen) el.classList.add('open');
+}
+function closeDropdownEl(id){
+  var el = document.getElementById(id);
+  if(el) el.classList.remove('open');
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.dropdown')){
+    document.querySelectorAll('.dropdown-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  }
+});
+
+async function handleDeleteCourse(id){
+  var ok = await showConfirm({ title:'Delete this course?', message:'This course and all its lectures will be permanently deleted. This can\u2019t be undone.', confirmLabel:'Delete', danger:true });
+  if(!ok) return;
+  await deleteCourseCascade(id);
+  state.courses = await dbGetAll('courses');
+  goToCourses();
+  showToast('Course deleted');
+}
+async function handleDeleteLecture(id){
+  var ok = await showConfirm({ title:'Delete this lecture?', message:'This can\u2019t be undone.', confirmLabel:'Delete', danger:true });
+  if(!ok) return;
+  var lecture = await dbGet('lectures', id);
+  await dbDelete('lectures', id);
+  showToast('Lecture deleted');
+  if(lecture) goToCourse(lecture.courseId); else goToCourses();
+}
+
+document.getElementById('app').addEventListener('click', async function(e){
+  var btn = e.target.closest('[data-action]');
+  if(!btn){
+    var segRow = e.target.closest('.segment');
+    if(segRow && audioEl && currentLectureData){
+      var idx0 = parseInt(segRow.getAttribute('data-idx'),10);
+      var seg0 = currentLectureData.segments[idx0];
+      if(seg0){ audioEl.currentTime = seg0.start; audioEl.play(); }
+    }
+    return;
+  }
+  var action = btn.getAttribute('data-action');
+  switch(action){
+    case 'go-courses': goToCourses(); break;
+    case 'go-course': goToCourse(btn.getAttribute('data-id')); break;
+    case 'go-player': goToPlayer(btn.getAttribute('data-id')); break;
+    case 'new-course': openNewCourseModal(); break;
+    case 'quick-record': openQuickRecordPicker(); break;
+    case 'new-lecture': goToRecording(state.currentCourseId); break;
+    case 'retry-mic': beginRecordingSession(state.currentCourseId); break;
+    case 'toggle-theme': toggleTheme(); break;
+    case 'delete-course': await handleDeleteCourse(btn.getAttribute('data-id')); break;
+    case 'delete-lecture': await handleDeleteLecture(btn.getAttribute('data-id')); break;
+    case 'switch-lang': switchLanguage(btn.getAttribute('data-lang'), btn.getAttribute('data-label')); closeDropdownEl('more-langs-menu'); break;
+    case 'toggle-more-langs': toggleDropdownEl('more-langs-menu'); break;
+    case 'toggle-pause': togglePauseRecording(); break;
+    case 'finish-recording': await finishAndSaveRecording(); break;
+    case 'discard-recording': await discardRecording(); break;
+    case 'toggle-play': togglePlayPause(); break;
+    case 'skip-back': skipSeconds(-10); break;
+    case 'skip-forward': skipSeconds(10); break;
+    case 'cycle-speed': cycleSpeed(); break;
+    case 'toggle-translate-panel':
+      var tp = document.getElementById('translate-panel');
+      if(tp) tp.hidden = !tp.hidden;
+      var pp1 = document.getElementById('polish-panel'); if(pp1) pp1.hidden = true;
+      break;
+    case 'toggle-polish-panel':
+      var pp = document.getElementById('polish-panel');
+      if(pp) pp.hidden = !pp.hidden;
+      var tp2 = document.getElementById('translate-panel'); if(tp2) tp2.hidden = true;
+      break;
+    case 'do-translate': await handleTranslate(); break;
+    case 'do-polish': await handlePolish(); break;
+    case 'hide-translation': state.activeTranslationLang=null; refreshTranscriptAndExercisesUI(); break;
+    case 'cycle-category': await handleCycleCategory(btn); break;
+    case 'cycle-live-category': handleCycleLiveCategory(btn); break;
+    case 'toggle-download-menu': toggleDropdownEl('download-menu'); break;
+    case 'download-transcript': closeDropdownEl('download-menu'); await exportTranscript(); break;
+    case 'download-audio': closeDropdownEl('download-menu'); await exportAudio(); break;
+  }
+});
+
+document.getElementById('app').addEventListener('input', function(e){
+  if(e.target.id==='seek-bar'){
+    isDraggingSeek = true;
+    if(audioEl){
+      var pct = e.target.value/100;
+      var curEl = document.getElementById('current-time-label');
+      if(curEl) curEl.textContent = formatDuration(pct*(knownDuration||0));
+    }
+  }
+});
+document.getElementById('app').addEventListener('change', async function(e){
+  if(e.target.id==='seek-bar'){
+    if(audioEl){
+      var pct = e.target.value/100;
+      audioEl.currentTime = pct*(knownDuration||0);
+    }
+    isDraggingSeek = false;
+  } else if(e.target.id==='course-title-input'){
+    var name = e.target.value.trim();
+    if(name && state.currentCourseId){
+      var course = await dbGet('courses', state.currentCourseId);
+      if(course){ course.name = name; await dbPut('courses', course); state.courses = await dbGetAll('courses'); }
+    }
+  } else if(e.target.id==='lecture-title-input'){
+    var title = e.target.value.trim();
+    if(title && currentLectureData){
+      currentLectureData.title = title;
+      await dbPut('lectures', currentLectureData);
+    }
+  }
+});
+document.getElementById('app').addEventListener('keydown', function(e){
+  if(e.key==='Enter' && (e.target.id==='course-title-input' || e.target.id==='lecture-title-input' || e.target.id==='rec-title-input')){
+    e.target.blur();
+  }
+});
+
+/* ===================== INIT ===================== */
+(async function init(){
+  initTheme();
+  if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(function(){}); }
+  await openDatabase();
+  state.courses = await dbGetAll('courses');
+  render();
+})();
+</script>
+</body>
+</html>
