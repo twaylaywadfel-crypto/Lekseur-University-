@@ -715,6 +715,9 @@ var accumulatedMs = 0;
 var pendingStart = {};
 var wakeLock = null;
 var recordingState = null; // {courseId, title, mimeType, segments, currentLang, currentLangLabel, isRecording, isPaused}
+var lastInterimText = '';
+var lastInterimStart = null;
+var consecutiveNetworkErrors = 0;
 
 function elapsedSeconds(){
   var current = activeStart ? (Date.now() - activeStart) : 0;
@@ -750,15 +753,32 @@ function createRecognitionInstance(lang){
   r.onresult = handleRecognitionResult;
   r.onerror = handleRecognitionError;
   r.onend = function(){
+    commitPendingInterim();
+    pendingStart = {};
     if(shouldBeRecognizing && recognition === r){
       try{ r.start(); }catch(e){}
     }
   };
   return r;
 }
+function commitPendingInterim(){
+  if(!lastInterimText || !recordingState) return;
+  var seg = { text:lastInterimText, start:(lastInterimStart!==null?lastInterimStart:elapsedSeconds()), end:elapsedSeconds(), lang:recordingState.currentLang, category:null };
+  recordingState.segments.push(seg);
+  appendLiveSegment(seg, recordingState.segments.length-1);
+  lastInterimText = '';
+  lastInterimStart = null;
+  updateInterimDisplay('');
+}
+function stopRecognitionKeepingText(){
+  commitPendingInterim();
+  if(recognition){ try{ recognition.stop(); }catch(e){} }
+}
 
 function handleRecognitionResult(event){
+  consecutiveNetworkErrors = 0;
   var interim = '';
+  var interimStart = null;
   for(var i=event.resultIndex; i<event.results.length; i++){
     var result = event.results[i];
     if(pendingStart[i]===undefined) pendingStart[i] = elapsedSeconds();
@@ -772,8 +792,11 @@ function handleRecognitionResult(event){
       delete pendingStart[i];
     } else {
       interim += result[0].transcript;
+      if(interimStart===null) interimStart = pendingStart[i];
     }
   }
+  lastInterimText = interim.trim();
+  lastInterimStart = lastInterimText ? (interimStart!==null ? interimStart : lastInterimStart) : null;
   updateInterimDisplay(interim);
 }
 function handleRecognitionError(event){
@@ -783,8 +806,13 @@ function handleRecognitionError(event){
   } else if(event.error==='audio-capture'){
     shouldBeRecognizing = false;
     showToast('No microphone could be found');
+  } else if(event.error==='network'){
+    consecutiveNetworkErrors++;
+    if(consecutiveNetworkErrors===3){
+      showToast('Live transcription needs a stable internet connection \u2014 recording will continue either way');
+    }
   }
-  /* no-speech / network / aborted: let onend handle the restart loop */
+  /* no-speech / aborted: let onend handle the restart loop */
 }
 
 function liveCatBtnLabel(cat){ return !cat ? 'Tag' : (cat==='exercise' ? 'Exercise' : 'Example'); }
@@ -876,7 +904,7 @@ function switchLanguage(langCode, label){
   recordingState.currentLangLabel = label;
   if(SpeechRecognitionCtor && recordingState.isRecording && !recordingState.isPaused){
     shouldBeRecognizing = false;
-    if(recognition){ try{ recognition.stop(); }catch(e){} }
+    stopRecognitionKeepingText();
     recognition = createRecognitionInstance(langCode);
     shouldBeRecognizing = true;
     try{ recognition.start(); }catch(e){}
@@ -912,6 +940,9 @@ async function beginRecordingSession(courseId){
   pendingStart = {};
   accumulatedMs = 0;
   activeStart = null;
+  lastInterimText = '';
+  lastInterimStart = null;
+  consecutiveNetworkErrors = 0;
 
   var gate = document.getElementById('permission-gate');
   try{
@@ -971,7 +1002,7 @@ function togglePauseRecording(){
   if(!recordingState.isPaused){
     recordingState.isPaused = true;
     shouldBeRecognizing = false;
-    if(recognition){ try{ recognition.stop(); }catch(e){} }
+    stopRecognitionKeepingText();
     if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.pause();
     pauseTimerFn();
     releaseWakeLock();
@@ -1015,7 +1046,7 @@ async function finishAndSaveRecording(){
   if(titleInput) recordingState.title = titleInput.value.trim() || recordingState.title;
 
   shouldBeRecognizing = false;
-  if(recognition){ try{ recognition.stop(); }catch(e){} }
+  stopRecognitionKeepingText();
   pauseTimerFn();
   teardownRecordingTimers();
 
