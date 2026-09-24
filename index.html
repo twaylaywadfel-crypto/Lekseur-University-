@@ -260,6 +260,18 @@ a{ color:inherit; }
 }
 .live-cat-btn-exercise{ background:var(--gold-soft); color:var(--gold-strong); border-color:var(--gold-soft); }
 .live-cat-btn-example{ background:var(--red-soft); color:var(--red); border-color:var(--red-soft); }
+
+.live-translate-row{ display:flex; align-items:center; justify-content:center; gap:var(--space-2); margin-top:var(--space-3); flex-wrap:wrap; }
+.live-translate-row label{ font-size:.8rem; color:var(--ink-500); }
+.live-feed.live-feed-split{ display:grid; grid-template-columns:1fr 1fr; column-gap:var(--space-3); align-content:start; }
+.live-feed.live-feed-split .live-feed-empty{ grid-column:1 / -1; }
+.live-split-label{ font-family:var(--font-mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-300); padding-bottom:var(--space-2); border-bottom:1.5px solid var(--paper-line); margin-bottom:var(--space-2); }
+.live-cell{ padding:4px 0; min-width:0; }
+.live-cell-original{ display:flex; align-items:baseline; gap:var(--space-2); }
+.live-cell-translation{ color:var(--ink-500); font-size:.92em; line-height:1.5; }
+.live-cell-translation.pending{ font-style:italic; color:var(--ink-300); }
+.live-cell.interim{ color:var(--ink-500); font-style:italic; }
+
 .support-note{ font-size:.82rem; color:var(--ink-500); background:var(--gold-soft); border-radius:var(--radius-md); padding:var(--space-3); margin-bottom:var(--space-4); text-align:center; }
 
 .record-controls{ margin-top:var(--space-5); display:flex; flex-direction:column; align-items:center; gap:var(--space-4); }
@@ -718,6 +730,8 @@ var recordingState = null; // {courseId, title, mimeType, segments, currentLang,
 var lastInterimText = '';
 var lastInterimStart = null;
 var consecutiveNetworkErrors = 0;
+var liveTranslateQueue = [];
+var liveTranslateBusy = false;
 
 function elapsedSeconds(){
   var current = activeStart ? (Date.now() - activeStart) : 0;
@@ -816,14 +830,21 @@ function handleRecognitionError(event){
 }
 
 function liveCatBtnLabel(cat){ return !cat ? 'Tag' : (cat==='exercise' ? 'Exercise' : 'Example'); }
-function appendLiveSegment(seg, idx){
+function insertBeforeInterim(feed, nodes){
+  var firstInterim = feed.querySelector('.interim');
+  nodes.forEach(function(n){
+    if(firstInterim) feed.insertBefore(n, firstInterim); else feed.appendChild(n);
+  });
+}
+function appendLiveSegment(seg, idx, isNew){
+  if(isNew===undefined) isNew = true;
   var feed = document.getElementById('rec-feed');
-  if(!feed) return;
+  if(!feed || !recordingState) return;
   var emptyMsg = feed.querySelector('.live-feed-empty');
   if(emptyMsg) emptyMsg.remove();
-  var row = document.createElement('div');
-  row.className = 'live-segment';
-  row.dir = (seg.lang && seg.lang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+  var splitMode = !!recordingState.translateLang;
+  var dir = (seg.lang && seg.lang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+
   var textSpan = document.createElement('span');
   textSpan.className = 'live-segment-text';
   textSpan.textContent = seg.text;
@@ -832,11 +853,126 @@ function appendLiveSegment(seg, idx){
   tagBtn.setAttribute('data-action','cycle-live-category');
   tagBtn.setAttribute('data-idx', String(idx));
   tagBtn.textContent = liveCatBtnLabel(seg.category);
-  row.appendChild(textSpan);
-  row.appendChild(tagBtn);
-  var interimEl = feed.querySelector('.live-segment.interim');
-  if(interimEl) feed.insertBefore(row, interimEl); else feed.appendChild(row);
+
+  if(splitMode){
+    var origCell = document.createElement('div');
+    origCell.className = 'live-cell live-cell-original';
+    origCell.dir = dir;
+    origCell.appendChild(textSpan);
+    origCell.appendChild(tagBtn);
+
+    var lang = recordingState.translateLang;
+    var existing = seg.translations ? seg.translations[lang] : undefined;
+    var transCell = document.createElement('div');
+    transCell.className = 'live-cell live-cell-translation';
+    transCell.setAttribute('data-idx', String(idx));
+    transCell.dir = (lang==='Arabic') ? 'rtl' : 'ltr';
+    if(existing!==undefined){
+      transCell.textContent = existing===null ? '\u2014' : existing;
+    } else if(isNew){
+      transCell.textContent = '\u2026';
+      transCell.classList.add('pending');
+      queueLiveTranslation(idx);
+    } else {
+      transCell.textContent = '\u2014';
+    }
+    insertBeforeInterim(feed, [origCell, transCell]);
+  } else {
+    var row = document.createElement('div');
+    row.className = 'live-segment';
+    row.dir = dir;
+    row.appendChild(textSpan);
+    row.appendChild(tagBtn);
+    insertBeforeInterim(feed, [row]);
+  }
   feed.scrollTop = feed.scrollHeight;
+}
+function rebuildLiveFeed(){
+  var feed = document.getElementById('rec-feed');
+  if(!feed || !recordingState) return;
+  feed.innerHTML = '';
+  var splitMode = !!recordingState.translateLang;
+  feed.classList.toggle('live-feed-split', splitMode);
+  if(splitMode){
+    var head1 = document.createElement('div');
+    head1.className = 'live-split-label';
+    head1.textContent = 'Transcript';
+    var head2 = document.createElement('div');
+    head2.className = 'live-split-label';
+    head2.textContent = 'Translation \u2014 ' + recordingState.translateLang;
+    feed.appendChild(head1);
+    feed.appendChild(head2);
+  }
+  if(!recordingState.segments.length){
+    var empty = document.createElement('div');
+    empty.className = 'live-feed-empty';
+    empty.textContent = 'Your words will appear here as you speak\u2026';
+    feed.appendChild(empty);
+  } else {
+    recordingState.segments.forEach(function(seg,i){ appendLiveSegment(seg,i,false); });
+  }
+  updateInterimDisplay(lastInterimText || '');
+}
+function setLiveTranslateLang(lang){
+  if(!recordingState) return;
+  var next = lang || null;
+  if(recordingState.translateLang === next) return;
+  recordingState.translateLang = next;
+  liveTranslateQueue = [];
+  rebuildLiveFeed();
+}
+function disableLiveTranslate(message){
+  if(recordingState) recordingState.translateLang = null;
+  liveTranslateQueue = [];
+  var sel = document.getElementById('live-translate-select');
+  if(sel) sel.value = '';
+  rebuildLiveFeed();
+  if(message) showToast(message);
+}
+function updateLiveTranslationCell(idx, text){
+  var cell = document.querySelector('#rec-feed .live-cell-translation[data-idx="'+idx+'"]');
+  if(!cell) return;
+  cell.classList.remove('pending');
+  cell.textContent = (text===null || text===undefined) ? '\u2014' : text;
+}
+function queueLiveTranslation(idx){
+  if(!recordingState || !recordingState.translateLang) return;
+  liveTranslateQueue.push(idx);
+  runLiveTranslateQueue();
+}
+async function runLiveTranslateQueue(){
+  if(liveTranslateBusy) return;
+  liveTranslateBusy = true;
+  try{
+    var sample = await getCapability('sample');
+    if(!sample){
+      liveTranslateBusy = false;
+      if(recordingState && recordingState.translateLang) disableLiveTranslate('Live translation isn\u2019t available in this session');
+      return;
+    }
+    while(recordingState && recordingState.translateLang && liveTranslateQueue.length){
+      var idx = liveTranslateQueue.shift();
+      var lang = recordingState.translateLang;
+      var seg = recordingState.segments[idx];
+      if(!seg || (seg.translations && seg.translations[lang]!==undefined)) continue;
+      try{
+        var res = await sample('Translate this single line from a university lecture into '+lang+'. Keep technical or scientific terms accurate. Reply with ONLY the translation \u2014 no notes, no quotes:\n\n'+seg.text, {modelTier:'quick', cache:true});
+        seg.translations = seg.translations || {};
+        seg.translations[lang] = (res.text||'').trim();
+        updateLiveTranslationCell(idx, seg.translations[lang]);
+      }catch(e){
+        if(e.code==='not_granted' || e.code==='sampling_disabled' || e.code==='not_declared' || e.code==='capability_disabled'){
+          disableLiveTranslate('Live translation isn\u2019t available in this session');
+          break;
+        }
+        seg.translations = seg.translations || {};
+        seg.translations[lang] = null;
+        updateLiveTranslationCell(idx, null);
+      }
+    }
+  } finally {
+    liveTranslateBusy = false;
+  }
 }
 function renderLiveTaggedList(){
   var el = document.getElementById('rec-tagged-list');
@@ -865,19 +1001,41 @@ function handleCycleLiveCategory(btn){
 }
 function updateInterimDisplay(text){
   var feed = document.getElementById('rec-feed');
-  if(!feed) return;
-  var interimEl = feed.querySelector('.live-segment.interim');
-  if(!text){
-    if(interimEl) interimEl.remove();
-    return;
+  if(!feed || !recordingState) return;
+  var splitMode = !!recordingState.translateLang;
+  var dir = (recordingState.currentLang.indexOf('ar')===0) ? 'rtl' : 'ltr';
+  if(splitMode){
+    var origEl = feed.querySelector('.live-cell-original.interim');
+    var transEl = feed.querySelector('.live-cell-translation.interim');
+    if(!text){
+      if(origEl) origEl.remove();
+      if(transEl) transEl.remove();
+      return;
+    }
+    if(!origEl){
+      origEl = document.createElement('div');
+      origEl.className = 'live-cell live-cell-original interim';
+      transEl = document.createElement('div');
+      transEl.className = 'live-cell live-cell-translation interim';
+      feed.appendChild(origEl);
+      feed.appendChild(transEl);
+    }
+    origEl.dir = dir;
+    origEl.textContent = text;
+  } else {
+    var interimEl = feed.querySelector('.live-segment.interim');
+    if(!text){
+      if(interimEl) interimEl.remove();
+      return;
+    }
+    if(!interimEl){
+      interimEl = document.createElement('div');
+      interimEl.className = 'live-segment interim';
+      feed.appendChild(interimEl);
+    }
+    interimEl.dir = dir;
+    interimEl.textContent = text;
   }
-  if(!interimEl){
-    interimEl = document.createElement('div');
-    interimEl.className = 'live-segment interim';
-    feed.appendChild(interimEl);
-  }
-  interimEl.dir = (recordingState.currentLang.indexOf('ar')===0) ? 'rtl' : 'ltr';
-  interimEl.textContent = text;
   feed.scrollTop = feed.scrollHeight;
 }
 
@@ -916,7 +1074,9 @@ async function beginRecordingSession(courseId){
   if(recordingState && recordingState.isRecording){
     var existingTitleInput = document.getElementById('rec-title-input');
     if(existingTitleInput) existingTitleInput.value = recordingState.title;
-    recordingState.segments.forEach(function(seg,i){ appendLiveSegment(seg,i); });
+    var existingSelect = document.getElementById('live-translate-select');
+    if(existingSelect) existingSelect.value = recordingState.translateLang || '';
+    rebuildLiveFeed();
     renderLiveTaggedList();
     updateRecordUIState();
     updateLangPillsUI();
@@ -933,6 +1093,7 @@ async function beginRecordingSession(courseId){
     segments: [],
     currentLang: PRIMARY_LANGS[0].code,
     currentLangLabel: PRIMARY_LANGS[0].label,
+    translateLang: null,
     isRecording: false,
     isPaused: false
   };
@@ -943,6 +1104,8 @@ async function beginRecordingSession(courseId){
   lastInterimText = '';
   lastInterimStart = null;
   consecutiveNetworkErrors = 0;
+  liveTranslateQueue = [];
+  liveTranslateBusy = false;
 
   var gate = document.getElementById('permission-gate');
   try{
@@ -1053,6 +1216,20 @@ async function finishAndSaveRecording(){
   var audioBlob = await stopMediaRecorderAndGetBlob();
   stopStreamTracks();
 
+  var liveTranslations = {};
+  var langsSeen = {};
+  recordingState.segments.forEach(function(s){
+    if(s.translations) Object.keys(s.translations).forEach(function(l){ langsSeen[l]=true; });
+  });
+  Object.keys(langsSeen).forEach(function(lang){
+    var complete = recordingState.segments.length>0 && recordingState.segments.every(function(s){
+      return s.translations && typeof s.translations[lang]==='string' && s.translations[lang];
+    });
+    if(complete){
+      liveTranslations[lang] = recordingState.segments.map(function(s){ return s.translations[lang]; });
+    }
+  });
+
   var lecture = {
     id: uid(),
     courseId: recordingState.courseId,
@@ -1062,7 +1239,7 @@ async function finishAndSaveRecording(){
     mimeType: recordingState.mimeType || 'audio/webm',
     audioBlob: audioBlob,
     segments: recordingState.segments,
-    translations: {},
+    translations: liveTranslations,
     polishedText: null
   };
   await dbPut('lectures', lecture);
@@ -1484,6 +1661,15 @@ function renderRecordingScreen(){
   var moreItems = MORE_LANGS.map(function(l){
     return '<button data-action="switch-lang" data-lang="'+l.code+'" data-label="'+l.label+'">'+l.label+'</button>';
   }).join('');
+  var translateOptions = TRANSLATE_TARGETS.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+  var liveTranslateRowHtml = !SpeechRecognitionCtor ? '' :
+    '<div class="live-translate-row" id="live-translate-row">'+
+      '<label for="live-translate-select">Live translation</label>'+
+      '<select id="live-translate-select" class="select-pill">'+
+        '<option value="">Off</option>'+
+        translateOptions+
+      '</select>'+
+    '</div>';
 
   var html =
     '<div class="record-screen">'+
@@ -1504,6 +1690,7 @@ function renderRecordingScreen(){
         '</div>'+
       '</div>'+
       '<div class="current-lang-label" id="current-lang-label"></div>'+
+      liveTranslateRowHtml+
       '<div class="live-feed" id="rec-feed" style="margin-top:var(--space-4)"><div class="live-feed-empty">Your words will appear here as you speak\u2026</div></div>'+
       '<div class="section-heading" style="margin-top:var(--space-4);margin-bottom:var(--space-2);font-size:1rem">Exercises &amp; Examples</div>'+
       '<div class="live-feed" id="rec-tagged-list" style="max-height:20vh;min-height:56px"><div class="live-feed-empty" style="padding-top:var(--space-3)">Tap \u201cTag\u201d under a line to mark it, or we\u2019ll detect these automatically once you finish.</div></div>'+
@@ -1772,6 +1959,8 @@ document.getElementById('app').addEventListener('change', async function(e){
       currentLectureData.title = title;
       await dbPut('lectures', currentLectureData);
     }
+  } else if(e.target.id==='live-translate-select'){
+    setLiveTranslateLang(e.target.value);
   }
 });
 document.getElementById('app').addEventListener('keydown', function(e){
