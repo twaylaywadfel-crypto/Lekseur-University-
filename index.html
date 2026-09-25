@@ -852,7 +852,12 @@ function armRecognitionWatchdog(r){
 }
 function createRecognitionInstance(lang){
   var r = new SpeechRecognitionCtor();
-  r.continuous = true;
+  /* continuous=true is unreliable on Chrome for Android: it can start fine, hand back one
+     result, and then sit "active" forever without ever firing onresult/onerror/onend again
+     (Chromium issue 40324711) \u2014 which looks exactly like "Listening\u2026" with nothing ever
+     transcribed. continuous=false processes one utterance per session; onend below restarts
+     the next session immediately, so speech still gets captured back-to-back, but reliably. */
+  r.continuous = false;
   r.interimResults = true;
   r.lang = lang;
   r.onstart = function(){ clearRecognitionWatchdog(); recognitionStallRetries = 0; setRecStatus('ok', 'Listening\u2026'); };
