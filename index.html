@@ -245,6 +245,12 @@ a{ color:inherit; }
 .record-dot.paused{ background:var(--ink-300); }
 @keyframes pulse-rec{ 0%,100%{ transform:scale(1); opacity:1; } 50%{ transform:scale(1.25); opacity:.55; } }
 
+.rec-status{ text-align:center; font-size:.8rem; font-weight:600; min-height:1.2em; margin-top:2px; color:var(--ink-500); }
+.rec-status-ok{ color:var(--ink-500); }
+.rec-status-warn{ color:var(--gold-strong); }
+.rec-status-error{ color:var(--red); }
+.rec-hint{ text-align:center; font-size:.72rem; color:var(--ink-300); margin-top:2px; }
+
 .live-feed{
   flex:1; min-height:160px; max-height:44vh; overflow-y:auto; background:var(--paper-panel);
   border:1.5px solid var(--paper-line); border-radius:var(--radius-lg); padding:var(--space-4);
@@ -263,16 +269,18 @@ a{ color:inherit; }
 
 .live-translate-row{ display:flex; align-items:center; justify-content:center; gap:var(--space-2); margin-top:var(--space-3); flex-wrap:wrap; }
 .live-translate-row label{ font-size:.8rem; color:var(--ink-500); }
-.live-feed.live-feed-split{ display:grid; grid-template-columns:1fr 1fr; column-gap:var(--space-3); align-content:start; }
+.live-feed.live-feed-split{ position:relative; display:grid; grid-template-columns:1fr 1fr; column-gap:var(--space-4); align-content:start; }
+.live-feed.live-feed-split::before{ content:''; position:absolute; left:50%; top:var(--space-4); bottom:var(--space-4); width:1.5px; background:var(--paper-line); }
 .live-feed.live-feed-split .live-feed-empty{ grid-column:1 / -1; }
 .live-split-label{ font-family:var(--font-mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-300); padding-bottom:var(--space-2); border-bottom:1.5px solid var(--paper-line); margin-bottom:var(--space-2); }
-.live-cell{ padding:4px 0; min-width:0; }
+.live-cell{ padding:4px 0 4px; min-width:0; border-bottom:1px solid color-mix(in srgb, var(--paper-line) 55%, transparent); }
 .live-cell-original{ display:flex; align-items:baseline; gap:var(--space-2); }
 .live-cell-translation{ color:var(--ink-500); font-size:.92em; line-height:1.5; }
 .live-cell-translation.pending{ font-style:italic; color:var(--ink-300); }
-.live-cell.interim{ color:var(--ink-500); font-style:italic; }
+.live-cell.interim{ color:var(--ink-500); font-style:italic; border-bottom:none; }
 
 .support-note{ font-size:.82rem; color:var(--ink-500); background:var(--gold-soft); border-radius:var(--radius-md); padding:var(--space-3); margin-bottom:var(--space-4); text-align:center; }
+.support-note.warn{ background:var(--red-soft); color:var(--red); }
 
 .record-controls{ margin-top:var(--space-5); display:flex; flex-direction:column; align-items:center; gap:var(--space-4); }
 .record-controls .btn{ min-width:220px; }
@@ -410,8 +418,56 @@ var MORE_LANGS=[
   {code:'tr-TR', label:'Türkçe'}
 ];
 var TRANSLATE_TARGETS=['French','English','Arabic','Spanish','German'];
+var TRANSLATE_TARGET_CODE={ French:'fr', English:'en', Arabic:'ar', Spanish:'es', German:'de' };
 
 var SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+/* ===================== TRANSLATION (MyMemory REST API) =====================
+   Runs as a plain https fetch from the visitor's own browser, so it works on
+   GitHub Pages or any static host — no Claude/AI capability required.
+   Free, no signup, CORS-enabled. ~5000 chars/day per visitor IP (anonymous). */
+function sourceLangCode2(bcpTag){ return (bcpTag||'en-US').split('-')[0].toLowerCase(); }
+function utf8ByteLength(str){ return new Blob([str]).size; }
+function splitForTranslation(text, maxBytes){
+  maxBytes = maxBytes || 450; /* MyMemory's q param caps at 500 bytes; leave headroom */
+  if(utf8ByteLength(text) <= maxBytes) return [text];
+  var words = text.split(/\s+/);
+  var chunks = [];
+  var current = '';
+  words.forEach(function(w){
+    var candidate = current ? (current+' '+w) : w;
+    if(utf8ByteLength(candidate) > maxBytes && current){
+      chunks.push(current);
+      current = w;
+    } else {
+      current = candidate;
+    }
+  });
+  if(current) chunks.push(current);
+  return chunks;
+}
+async function mymemoryTranslateOnce(text, sourceCode, targetCode){
+  var url = 'https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+encodeURIComponent(sourceCode+'|'+targetCode);
+  var res = await fetch(url);
+  if(!res.ok) throw new Error('translate-http-'+res.status);
+  var data = await res.json();
+  var okStatus = data && (data.responseStatus===200 || data.responseStatus==='200');
+  var translated = data && data.responseData && typeof data.responseData.translatedText==='string' ? data.responseData.translatedText : '';
+  if(!okStatus || !translated || /MYMEMORY WARNING/i.test(translated)) throw new Error('translate-failed');
+  return translated;
+}
+async function translateText(text, sourceBcpTag, targetLabel){
+  if(!text || !text.trim()) return '';
+  var sourceCode = sourceLangCode2(sourceBcpTag);
+  var targetCode = TRANSLATE_TARGET_CODE[targetLabel] || 'en';
+  if(sourceCode===targetCode) return text;
+  var pieces = splitForTranslation(text.trim());
+  var out = [];
+  for(var i=0;i<pieces.length;i++){
+    out.push(await mymemoryTranslateOnce(pieces[i], sourceCode, targetCode));
+  }
+  return out.join(' ');
+}
 
 /* ===================== ICONS ===================== */
 var ICONS = {
@@ -759,21 +815,52 @@ async function requestWakeLock(){
 }
 function releaseWakeLock(){ if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock=null; } }
 
+function setRecStatus(kind, text){
+  var el = document.getElementById('rec-status');
+  if(!el) return;
+  el.textContent = text || '';
+  el.className = 'rec-status' + (kind ? (' rec-status-'+kind) : '');
+}
 function createRecognitionInstance(lang){
   var r = new SpeechRecognitionCtor();
   r.continuous = true;
   r.interimResults = true;
   r.lang = lang;
+  r.onstart = function(){ setRecStatus('ok', 'Listening\u2026'); };
+  r.onspeechstart = function(){ setRecStatus('ok', 'Hearing you \u2014 transcribing\u2026'); };
+  r.onspeechend = function(){ setRecStatus('ok', 'Listening\u2026'); };
   r.onresult = handleRecognitionResult;
   r.onerror = handleRecognitionError;
   r.onend = function(){
     commitPendingInterim();
     pendingStart = {};
     if(shouldBeRecognizing && recognition === r){
-      try{ r.start(); }catch(e){}
+      setRecStatus('warn', 'Reconnecting\u2026');
+      startRecognitionSafely(r);
     }
   };
   return r;
+}
+function startRecognitionSafely(r){
+  r = r || recognition;
+  try{
+    r.start();
+  }catch(e){
+    console.error('Could not start speech recognition:', e);
+    setRecStatus('error', 'Couldn\u2019t start live transcription (' + (e && e.message ? e.message : 'browser refused') + ') \u2014 tap Pause then Resume to retry');
+  }
+}
+var braveWarningShown = false;
+function warnIfBrave(){
+  try{
+    if(braveWarningShown || !navigator.brave || typeof navigator.brave.isBrave!=='function') return;
+    navigator.brave.isBrave().then(function(isBrave){
+      if(!isBrave || braveWarningShown) return;
+      braveWarningShown = true;
+      var note = document.getElementById('brave-note');
+      if(note) note.style.display = 'block';
+    }).catch(function(){});
+  }catch(e){}
 }
 function commitPendingInterim(){
   if(!lastInterimText || !recordingState) return;
@@ -814,19 +901,31 @@ function handleRecognitionResult(event){
   updateInterimDisplay(interim);
 }
 function handleRecognitionError(event){
+  console.warn('Speech recognition error:', event.error);
   if(event.error==='not-allowed' || event.error==='service-not-allowed'){
     shouldBeRecognizing = false;
+    setRecStatus('error', 'Microphone permission denied for live transcription');
     showToast('Microphone permission was denied for live transcription');
   } else if(event.error==='audio-capture'){
     shouldBeRecognizing = false;
+    setRecStatus('error', 'No microphone could be found');
     showToast('No microphone could be found');
   } else if(event.error==='network'){
     consecutiveNetworkErrors++;
+    setRecStatus('warn', 'Network issue reaching the speech service \u2014 retrying\u2026');
     if(consecutiveNetworkErrors===3){
       showToast('Live transcription needs a stable internet connection \u2014 recording will continue either way');
     }
+  } else if(event.error==='no-speech'){
+    setRecStatus('ok', 'Listening\u2026 (no speech detected yet)');
+  } else if(event.error==='aborted'){
+    /* intentional stop (pause/switch language) — no status needed */
+  } else if(event.error==='language-not-supported'){
+    shouldBeRecognizing = false;
+    setRecStatus('error', 'This language isn\u2019t supported by the browser\u2019s speech service');
+  } else {
+    setRecStatus('warn', 'Speech service reported: '+event.error+' \u2014 retrying\u2026');
   }
-  /* no-speech / aborted: let onend handle the restart loop */
 }
 
 function liveCatBtnLabel(cat){ return !cat ? 'Tag' : (cat==='exercise' ? 'Exercise' : 'Example'); }
@@ -940,34 +1039,33 @@ function queueLiveTranslation(idx){
   liveTranslateQueue.push(idx);
   runLiveTranslateQueue();
 }
+var consecutiveTranslateErrors = 0;
 async function runLiveTranslateQueue(){
   if(liveTranslateBusy) return;
   liveTranslateBusy = true;
   try{
-    var sample = await getCapability('sample');
-    if(!sample){
-      liveTranslateBusy = false;
-      if(recordingState && recordingState.translateLang) disableLiveTranslate('Live translation isn\u2019t available in this session');
-      return;
-    }
     while(recordingState && recordingState.translateLang && liveTranslateQueue.length){
       var idx = liveTranslateQueue.shift();
       var lang = recordingState.translateLang;
       var seg = recordingState.segments[idx];
       if(!seg || (seg.translations && seg.translations[lang]!==undefined)) continue;
       try{
-        var res = await sample('Translate this single line from a university lecture into '+lang+'. Keep technical or scientific terms accurate. Reply with ONLY the translation \u2014 no notes, no quotes:\n\n'+seg.text, {modelTier:'quick', cache:true});
+        var translated = await translateText(seg.text, seg.lang||recordingState.currentLang, lang);
+        consecutiveTranslateErrors = 0;
         seg.translations = seg.translations || {};
-        seg.translations[lang] = (res.text||'').trim();
-        updateLiveTranslationCell(idx, seg.translations[lang]);
+        seg.translations[lang] = translated;
+        updateLiveTranslationCell(idx, translated);
       }catch(e){
-        if(e.code==='not_granted' || e.code==='sampling_disabled' || e.code==='not_declared' || e.code==='capability_disabled'){
-          disableLiveTranslate('Live translation isn\u2019t available in this session');
-          break;
-        }
+        console.warn('Live translation failed for segment', idx, e);
         seg.translations = seg.translations || {};
         seg.translations[lang] = null;
         updateLiveTranslationCell(idx, null);
+        consecutiveTranslateErrors++;
+        if(consecutiveTranslateErrors>=3){
+          consecutiveTranslateErrors = 0;
+          disableLiveTranslate('Live translation stopped \u2014 can\u2019t reach the translation service right now (check your internet connection)');
+          break;
+        }
       }
     }
   } finally {
@@ -1051,8 +1149,7 @@ function updateLangPillsUI(){
   });
   var labelEl = document.getElementById('current-lang-label');
   if(labelEl){
-    var isPrimary = PRIMARY_LANGS.some(function(l){ return l.code===recordingState.currentLang; });
-    labelEl.textContent = isPrimary ? '' : ('Now transcribing: ' + (recordingState.currentLangLabel||recordingState.currentLang));
+    labelEl.textContent = 'Transcribing in: ' + (recordingState.currentLangLabel||recordingState.currentLang) + ' \u2014 tap a language above if you\u2019re speaking a different one';
   }
 }
 
@@ -1065,7 +1162,8 @@ function switchLanguage(langCode, label){
     stopRecognitionKeepingText();
     recognition = createRecognitionInstance(langCode);
     shouldBeRecognizing = true;
-    try{ recognition.start(); }catch(e){}
+    setRecStatus('warn', 'Starting\u2026');
+    startRecognitionSafely();
   }
   updateLangPillsUI();
 }
@@ -1084,6 +1182,8 @@ async function beginRecordingSession(courseId){
     if(existingNote && !SpeechRecognitionCtor) existingNote.style.display = 'block';
     var existingGate = document.getElementById('permission-gate');
     if(existingGate) existingGate.innerHTML = '';
+    setRecStatus(recordingState.isPaused ? '' : 'ok', recordingState.isPaused ? 'Paused' : 'Listening\u2026');
+    if(braveWarningShown){ var bn = document.getElementById('brave-note'); if(bn) bn.style.display = 'block'; }
     return;
   }
   recordingState = {
@@ -1139,7 +1239,9 @@ async function beginRecordingSession(courseId){
   if(SpeechRecognitionCtor){
     recognition = createRecognitionInstance(recordingState.currentLang);
     shouldBeRecognizing = true;
-    try{ recognition.start(); }catch(e){}
+    setRecStatus('warn', 'Starting\u2026');
+    startRecognitionSafely();
+    warnIfBrave();
   } else {
     var note = document.getElementById('support-note');
     if(note) note.style.display = 'block';
@@ -1169,6 +1271,7 @@ function togglePauseRecording(){
     if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.pause();
     pauseTimerFn();
     releaseWakeLock();
+    setRecStatus('', 'Paused');
   } else {
     recordingState.isPaused = false;
     startTimer();
@@ -1176,7 +1279,8 @@ function togglePauseRecording(){
     if(SpeechRecognitionCtor){
       recognition = createRecognitionInstance(recordingState.currentLang);
       shouldBeRecognizing = true;
-      try{ recognition.start(); }catch(e){}
+      setRecStatus('warn', 'Starting\u2026');
+      startRecognitionSafely();
     }
     requestWakeLock();
   }
@@ -1375,34 +1479,33 @@ async function handleTranslate(){
   var segments = currentLectureData.segments || [];
   if(!segments.length){ statusEl.textContent='There\u2019s no transcript to translate.'; return; }
 
-  var sample = await getCapability('sample');
-  if(!sample){ statusEl.textContent = 'Translation isn\u2019t available in this session.'; return; }
-
-  var numbered = segments.map(function(s,i){ return i+'. '+s.text; }).join('\n');
-  var chunks = chunkTextByBytes(numbered, 30000);
   var translations = new Array(segments.length);
-  for(var c=0;c<chunks.length;c++){
-    statusEl.textContent = chunks.length>1 ? ('Translating\u2026 ('+(c+1)+'/'+chunks.length+')') : 'Translating\u2026';
-    var prompt = 'Translate each numbered line of this university lecture transcript into '+targetLang+'. Keep numbers and technical/scientific terms accurate. Each line number is the original segment index (lines may not be sequential in this excerpt) — translate every line independently but use the surrounding lines for context. Return ONLY JSON of the form {"items":[{"i":<index>,"t":"<translation>"}]}, one entry per line below, no commentary:\n\n'+chunks[c];
-    try{
-      var res = await sample.json(prompt, {modelTier:'quick', cache:true});
-      if(res && Array.isArray(res.items)){
-        res.items.forEach(function(it){
-          if(it && typeof it.i==='number' && it.i>=0 && it.i<translations.length && typeof it.t==='string') translations[it.i]=it.t;
-        });
+  var done = 0, failed = 0;
+  var nextIdx = 0;
+  var concurrency = 4;
+  statusEl.textContent = 'Translating\u2026 (0/'+segments.length+')';
+  async function worker(){
+    while(nextIdx < segments.length){
+      var my = nextIdx++;
+      try{
+        translations[my] = await translateText(segments[my].text, segments[my].lang||'en-US', targetLang);
+      }catch(e){
+        translations[my] = segments[my].text; /* keep the original line rather than leave it blank */
+        failed++;
       }
-    }catch(e){
-      statusEl.textContent = sampleErrorMessage(e.code);
-      return;
+      done++;
+      statusEl.textContent = 'Translating\u2026 ('+done+'/'+segments.length+')';
     }
   }
-  for(var k=0;k<translations.length;k++){ if(translations[k]===undefined) translations[k]=segments[k].text; }
+  var workers = [];
+  for(var w=0; w<concurrency && w<segments.length; w++) workers.push(worker());
+  await Promise.all(workers);
 
   currentLectureData.translations = currentLectureData.translations || {};
   currentLectureData.translations[targetLang] = translations;
   await dbPut('lectures', currentLectureData);
   state.activeTranslationLang = targetLang;
-  statusEl.textContent = '';
+  statusEl.textContent = failed ? (failed+' line(s) couldn\u2019t reach the translation service and were left in the original language.') : '';
   refreshTranscriptAndExercisesUI();
 }
 
@@ -1509,25 +1612,31 @@ function buildTranscriptText(lecture){
   if(!lecture.segments.length) return header + '(No transcript for this lecture)';
   return header + lecture.segments.map(function(s){ return '['+formatDuration(s.start)+'] '+s.text; }).join('\n');
 }
+function triggerBrowserDownload(blob, filename){
+  try{
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    return true;
+  }catch(e){ console.error('Download failed:', e); return false; }
+}
 async function exportTranscript(){
   if(!currentLectureData) return;
-  var downloads = await getCapability('downloads');
-  if(!downloads){ showToast('Downloads aren\u2019t available here'); return; }
   var text = buildTranscriptText(currentLectureData);
-  try{
-    await downloads.save({ filename: sanitizeFilename(currentLectureData.title)+'.txt', data: text });
-    showToast('Transcript saved');
-  }catch(e){ showToast('Couldn\u2019t save the file'); }
+  var blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  var ok = triggerBrowserDownload(blob, sanitizeFilename(currentLectureData.title)+'.txt');
+  showToast(ok ? 'Transcript saved' : 'Couldn\u2019t save the file');
 }
 async function exportAudio(){
   if(!currentLectureData) return;
-  var downloads = await getCapability('downloads');
-  if(!downloads){ showToast('Downloads aren\u2019t available here'); return; }
   var ext = mimeToExt(currentLectureData.mimeType);
-  try{
-    await downloads.save({ filename: sanitizeFilename(currentLectureData.title)+'.'+ext, data: currentLectureData.audioBlob });
-    showToast('Audio saved');
-  }catch(e){ showToast('Couldn\u2019t save the file'); }
+  var ok = triggerBrowserDownload(currentLectureData.audioBlob, sanitizeFilename(currentLectureData.title)+'.'+ext);
+  showToast(ok ? 'Audio saved' : 'Couldn\u2019t save the file');
 }
 
 /* ===================== NAVIGATION ===================== */
@@ -1654,6 +1763,8 @@ async function renderCourseScreen(){
 function renderRecordingScreen(){
   var supportNoteHtml = SpeechRecognitionCtor ? '' :
     '<div class="support-note" id="support-note">Live transcription isn\u2019t supported in this browser, but audio recording will still work. Use Chrome or Edge for automatic transcription.</div>';
+  var braveNoteHtml =
+    '<div class="support-note warn" id="brave-note" style="display:none">Brave blocks the speech service that live transcription relies on, so lines may never appear even though nothing looks wrong. Audio recording still works \u2014 for live transcription, please use Chrome or Edge instead.</div>';
 
   var langPills = PRIMARY_LANGS.map(function(l,i){
     return '<button class="lang-pill'+(i===0?' active':'')+'" data-action="switch-lang" data-lang="'+l.code+'" data-label="'+l.label+'">'+l.label+'</button>';
@@ -1681,7 +1792,10 @@ function renderRecordingScreen(){
         '<div class="permission-gate">'+ICONS.mic+'<p style="color:var(--ink-500)">Requesting microphone access\u2026</p></div>'+
       '</div>'+
       supportNoteHtml+
+      braveNoteHtml+
       '<div class="record-timer"><span class="record-dot" id="rec-dot"></span><span id="rec-timer-value">0:00</span></div>'+
+      '<div class="rec-status" id="rec-status"></div>'+
+      (SpeechRecognitionCtor ? '<div class="rec-hint">Live transcription uses your browser\u2019s speech service \u2014 needs Chrome or Edge and an internet connection.</div>' : '')+
       '<div class="lang-row">'+
         langPills+
         '<div class="dropdown">'+
