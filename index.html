@@ -782,6 +782,8 @@ var activeStart = null;
 var accumulatedMs = 0;
 var pendingStart = {};
 var wakeLock = null;
+var recognitionWatchdogTimer = null;
+var recognitionStallRetries = 0;
 var recordingState = null; // {courseId, title, mimeType, segments, currentLang, currentLangLabel, isRecording, isPaused}
 var lastInterimText = '';
 var lastInterimStart = null;
@@ -821,17 +823,46 @@ function setRecStatus(kind, text){
   el.textContent = text || '';
   el.className = 'rec-status' + (kind ? (' rec-status-'+kind) : '');
 }
+function clearRecognitionWatchdog(){
+  if(recognitionWatchdogTimer){ clearTimeout(recognitionWatchdogTimer); recognitionWatchdogTimer = null; }
+}
+/* On some Android/Chrome builds, starting SpeechRecognition while this app's own
+   MediaRecorder already holds the microphone (or while the connection is too weak to
+   reach Google's speech service) leaves the recognizer stuck: it never fires onstart,
+   onresult, onerror, or onend \u2014 so the status line just stays blank forever with no
+   sign anything is wrong. This watchdog notices that silence and recovers from it. */
+function armRecognitionWatchdog(r){
+  clearRecognitionWatchdog();
+  recognitionWatchdogTimer = setTimeout(function(){
+    recognitionWatchdogTimer = null;
+    if(recognition !== r || !shouldBeRecognizing || !recordingState || recordingState.isPaused) return;
+    recognitionStallRetries++;
+    if(recognitionStallRetries <= 2){
+      setRecStatus('warn', 'Still connecting to the speech service\u2026 retrying ('+recognitionStallRetries+'/2)');
+      try{ r.abort(); }catch(e){}
+      var fresh = createRecognitionInstance(recordingState.currentLang);
+      recognition = fresh;
+      startRecognitionSafely(fresh);
+    } else {
+      try{ r.abort(); }catch(e){}
+      setRecStatus('error', 'Live transcription can\u2019t connect on this device right now \u2014 audio is still recording safely. Tap Pause then Resume to try again.');
+      showToast('Live transcription isn\u2019t connecting \u2014 your audio is still recording');
+    }
+  }, 5000);
+}
 function createRecognitionInstance(lang){
   var r = new SpeechRecognitionCtor();
   r.continuous = true;
   r.interimResults = true;
   r.lang = lang;
-  r.onstart = function(){ setRecStatus('ok', 'Listening\u2026'); };
-  r.onspeechstart = function(){ setRecStatus('ok', 'Hearing you \u2014 transcribing\u2026'); };
+  r.onstart = function(){ clearRecognitionWatchdog(); recognitionStallRetries = 0; setRecStatus('ok', 'Listening\u2026'); };
+  r.onaudiostart = function(){ clearRecognitionWatchdog(); };
+  r.onspeechstart = function(){ clearRecognitionWatchdog(); setRecStatus('ok', 'Hearing you \u2014 transcribing\u2026'); };
   r.onspeechend = function(){ setRecStatus('ok', 'Listening\u2026'); };
-  r.onresult = handleRecognitionResult;
-  r.onerror = handleRecognitionError;
+  r.onresult = function(event){ clearRecognitionWatchdog(); handleRecognitionResult(event); };
+  r.onerror = function(event){ clearRecognitionWatchdog(); handleRecognitionError(event); };
   r.onend = function(){
+    clearRecognitionWatchdog();
     commitPendingInterim();
     pendingStart = {};
     if(shouldBeRecognizing && recognition === r){
@@ -845,6 +876,7 @@ function startRecognitionSafely(r){
   r = r || recognition;
   try{
     r.start();
+    armRecognitionWatchdog(r);
   }catch(e){
     console.error('Could not start speech recognition:', e);
     setRecStatus('error', 'Couldn\u2019t start live transcription (' + (e && e.message ? e.message : 'browser refused') + ') \u2014 tap Pause then Resume to retry');
@@ -873,6 +905,7 @@ function commitPendingInterim(){
 }
 function stopRecognitionKeepingText(){
   commitPendingInterim();
+  clearRecognitionWatchdog();
   if(recognition){ try{ recognition.stop(); }catch(e){} }
 }
 
@@ -1160,6 +1193,7 @@ function switchLanguage(langCode, label){
   if(SpeechRecognitionCtor && recordingState.isRecording && !recordingState.isPaused){
     shouldBeRecognizing = false;
     stopRecognitionKeepingText();
+    recognitionStallRetries = 0;
     recognition = createRecognitionInstance(langCode);
     shouldBeRecognizing = true;
     setRecStatus('warn', 'Starting\u2026');
@@ -1237,18 +1271,27 @@ async function beginRecordingSession(courseId){
   requestWakeLock();
 
   if(SpeechRecognitionCtor){
-    recognition = createRecognitionInstance(recordingState.currentLang);
-    shouldBeRecognizing = true;
+    recognitionStallRetries = 0;
     setRecStatus('warn', 'Starting\u2026');
-    startRecognitionSafely();
-    warnIfBrave();
+    /* Brief delay so the MediaRecorder stream above finishes claiming the microphone
+       before SpeechRecognition also tries to open it \u2014 starting both at the exact same
+       instant is what tends to leave the recognizer silently stuck on some devices. */
+    await new Promise(function(res){ setTimeout(res, 350); });
+    if(recordingState && recordingState.isRecording){
+      recognition = createRecognitionInstance(recordingState.currentLang);
+      shouldBeRecognizing = true;
+      startRecognitionSafely();
+      warnIfBrave();
+    }
   } else {
     var note = document.getElementById('support-note');
     if(note) note.style.display = 'block';
   }
 
-  recTimerInterval = setInterval(updateTimerDisplay, 500);
-  updateRecordUIState();
+  if(recordingState && recordingState.isRecording){
+    recTimerInterval = setInterval(updateTimerDisplay, 500);
+    updateRecordUIState();
+  }
 }
 
 function updateRecordUIState(){
@@ -1277,6 +1320,7 @@ function togglePauseRecording(){
     startTimer();
     if(mediaRecorder && mediaRecorder.state==='paused') mediaRecorder.resume();
     if(SpeechRecognitionCtor){
+      recognitionStallRetries = 0;
       recognition = createRecognitionInstance(recordingState.currentLang);
       shouldBeRecognizing = true;
       setRecStatus('warn', 'Starting\u2026');
@@ -1361,6 +1405,7 @@ async function discardRecording(){
   if(!ok) return;
   var courseId = recordingState.courseId;
   shouldBeRecognizing = false;
+  clearRecognitionWatchdog();
   if(recognition){ try{ recognition.stop(); }catch(e){} }
   if(mediaRecorder && mediaRecorder.state!=='inactive'){ try{ mediaRecorder.stop(); }catch(e){} }
   stopStreamTracks();
